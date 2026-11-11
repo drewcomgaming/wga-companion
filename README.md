@@ -7,6 +7,10 @@ The official WoW Forever addon of **Whirlwind Gaming Academy**: step-by-step que
 2. For region-wide prices, download **WGACompanion_Data.zip** from the [prices-us release](../../releases/tag/prices-us) and unzip it next to it. It updates hourly; replace the folder and `/reload` to refresh.
 3. In game: `/wga`.
 
+## Minimap button
+
+A whirlwind button sits on the minimap edge. Left-click opens the hub, right-click opens a quick menu (guides, quest icon toggles, AH scan, bag report), and dragging moves it around the edge. `/wga minimap` shows or hides it.
+
 ## Quest navigation
 
 With no guide loaded, the arrow points at your tracked quest (click one in the objective tracker), or the closest quest in your log. Left-click the arrow to cycle quests.

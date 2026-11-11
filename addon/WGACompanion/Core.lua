@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.5.6"
+CM.version = "0.6.0"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -22,6 +22,8 @@ local defaults = {
     watchList = {},       -- [lower name] = true, extra NPC names to alert on
     questArrow = true,    -- arrow points at your tracked/closest quest when no guide is loaded
     questPins = true,     -- quest objective and turn-in spots on the world map
+    minimapButton = true, -- WGA button on the minimap edge
+    minimapAngle = 215,   -- its position around the minimap, in degrees
     questMinimap = true,  -- the same quest icons on the minimap
     questAvailable = true, -- "!" on the world map for quests you can pick up
     questPlates = true,   -- "!" over mobs you still need
@@ -226,6 +228,8 @@ SlashCmdList.WGACOMPANION = function(input)
     CM.Guides:PrintList()
   elseif cmd == "reset" then
     CM.Guides:Reset()
+  elseif cmd == "minimap" or cmd == "button" then
+    CM.MinimapButton:SetShown(not (CM.db.settings.minimapButton ~= false))
   elseif cmd == "arrow" then
     if rest == "reset" then CM.Arrow:ResetPosition() else CM.Arrow:Toggle() end
   elseif cmd == "quest" or cmd == "q" then
@@ -237,6 +241,7 @@ SlashCmdList.WGACOMPANION = function(input)
   else
     CM:Print("Commands:")
     CM:Print("  /wga  - open the window")
+    CM:Print("  /wga minimap  - show or hide the minimap button")
     CM:Print("  /wga scan  - scan the auction house (AH window must be open)")
     CM:Print("  /wga price <item name or link>  - show stored prices")
     CM:Print("  /wga house [id]  - list or pick the region auction house (0 = automatic)")

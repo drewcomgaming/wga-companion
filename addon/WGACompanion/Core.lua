@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.11.0"
+CM.version = "0.12.0"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -41,6 +41,7 @@ local defaults = {
     rareButton = true,       -- alert card with model, loot and Target button
     lootSwap = true,         -- offer to swap out the cheapest bag item when bags are full
     shopping = true,         -- shopping list panel at the auction house
+    rareHideDone = false,    -- hide rares you have killed and collected everything from
   },
 }
 

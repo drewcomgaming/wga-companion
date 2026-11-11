@@ -68,6 +68,20 @@ The hub's **Dungeons** page shows every dungeon as a card with its art, level ra
 
 Art, bosses and loot come from the game's built-in Encounter Journal. Quests come from QuestieDB.
 
+## Rare tracker
+
+Every rare in the quest database (327 so far) shows on the world map at its spawn spots. If it wanders, faint dots mark the area it moves around in. The icon colour shows your progress:
+
+- **Red:** you haven't seen it yet.
+- **Pink:** you've seen it, or killed it but still miss some of its loot.
+- **Green with a check:** you've killed it and have every green-or-better item it's known to drop.
+
+Hover an icon for the rare's level, status, drops and chances. Click it to point the arrow there, or right-click to open the hub's Rares page.
+
+The Rares page lists the rares in a zone, shows a map of their spawns, a 3D model and your progress, and the rare's drops with their chances.
+
+Drop chances are learned from kills. Each time you loot a rare, WGA counts the kill and what dropped. Spawn data comes from QuestieDB.
+
 ## Quest navigation
 
 With no guide loaded, the arrow points at your tracked quest (click one in the objective tracker), or the closest quest in your log. Left-click the arrow to cycle quests.

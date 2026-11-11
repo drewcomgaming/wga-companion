@@ -143,6 +143,7 @@ local function qualityColor(q)
 end
 
 -- Map art fitted into a frame, keeping its shape.
+function J.DrawMap(holder, mapID) return J._drawMap(holder, mapID) end
 local function drawMap(holder, mapID)
   holder.tiles = holder.tiles or {}
   for _, t in ipairs(holder.tiles) do t:Hide() end
@@ -171,6 +172,7 @@ local function drawMap(holder, mapID)
   return holder.art
 end
 
+J._drawMap = drawMap
 -- Page --------------------------------------------------------------------------------------------
 function J:Build(body)
   if self.page then return self.page end

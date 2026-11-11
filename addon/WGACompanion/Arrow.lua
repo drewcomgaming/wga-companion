@@ -53,18 +53,18 @@ end
 function A:Build()
   if self.frame then return end
   local f = CreateFrame("Frame", "WGACompanionArrow", UIParent)
-  f:SetSize(56, 56)
+  f:SetSize(52, 52)
   f:SetPoint("TOP", UIParent, "TOP", 0, -140)
   f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
   f:SetClampedToScreen(true)
   f.tex = f:CreateTexture(nil, "ARTWORK")
   f.tex:SetAllPoints()
-  f.tex:SetTexture("Interface\\Buttons\\UI-MicroStream-Green") -- points down; rotated below
+  f.tex:SetTexture("Interface\\AddOns\\WGACompanion\\Icons\\arrow") -- white, points up; tinted and rotated below
   f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   f.title:SetPoint("TOP", f, "BOTTOM", 0, -2)
   f.title:SetWidth(240)
-  f.dist = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  f.dist:SetPoint("TOP", f.title, "BOTTOM", 0, -1)
+  f.dist = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+  f.dist:SetPoint("TOP", f.title, "BOTTOM", 0, -2)
   f:SetScript("OnDragStart", function(self) self.dragging = true; self:StartMoving() end)
   f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); C_Timer.After(0, function() self.dragging = false end) end)
   f:SetScript("OnMouseUp", function(self, button)
@@ -99,15 +99,15 @@ function A:Tick()
     return
   end
   f.tex:SetAlpha(1)
-  f.dist:SetText(string.format("%d yd", dist))
+  f.dist:SetText(dist < ARRIVE_YARDS and "|cff40ff40You're here|r" or string.format("%d yd", dist))
   local facing = CM:Safe(GetPlayerFacing())
   if facing then
     local rel = bearing + facing           -- clockwise angle from where you face
-    f.tex:SetRotation(math.pi - rel)        -- texture points down, SetRotation is counter-clockwise
-    -- colour: green ahead, yellow to the side, red behind
-    local off = math.abs(((rel + math.pi) % (2 * math.pi)) - math.pi)
-    f.tex:SetTexture(off < 0.5 and "Interface\\Buttons\\UI-MicroStream-Green"
-      or (off < 1.8 and "Interface\\Buttons\\UI-MicroStream-Yellow" or "Interface\\Buttons\\UI-MicroStream-Red"))
+    f.tex:SetRotation(-rel)                 -- texture points up, SetRotation is counter-clockwise
+    -- colour fades green (ahead) -> yellow (side) -> red (behind)
+    local off = math.abs(((rel + math.pi) % (2 * math.pi)) - math.pi) / math.pi -- 0 ahead, 1 behind
+    if off < 0.5 then f.tex:SetVertexColor(0.2 + off * 1.6, 1, 0.2)
+    else f.tex:SetVertexColor(1, 1 - (off - 0.5) * 1.6, 0.15) end
   end
   if dist < ARRIVE_YARDS then
     if t == temp then temp = nil
@@ -162,4 +162,12 @@ function A:SetAuto(m, x, y, title)
   end
   if CM.db and CM.db.settings.arrow == false then self.frame:Hide() return end
   self.frame:SetShown(self:Active() ~= nil)
+end
+
+function A:ResetPosition()
+  self:Build()
+  self.frame:ClearAllPoints()
+  self.frame:SetPoint("TOP", UIParent, "TOP", 0, -140)
+  self.frame:SetShown(self:Active() ~= nil)
+  CM:Print("Arrow moved back to the top of the screen.")
 end

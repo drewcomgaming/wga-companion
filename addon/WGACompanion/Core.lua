@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.5.1"
+CM.version = "0.5.2"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -226,7 +226,7 @@ SlashCmdList.WGACOMPANION = function(input)
   elseif cmd == "reset" then
     CM.Guides:Reset()
   elseif cmd == "arrow" then
-    CM.Arrow:Toggle()
+    if rest == "reset" then CM.Arrow:ResetPosition() else CM.Arrow:Toggle() end
   elseif cmd == "quest" or cmd == "q" then
     CM.QuestNav:Command(rest)
   elseif cmd == "record" then

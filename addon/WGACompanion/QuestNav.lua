@@ -270,6 +270,7 @@ function N:UpdateArrow()
   else
     local _, text = nextObjective(id)
     if text then title = title .. "\n" .. text end
+    if who and not (text and text:lower():find(who:lower(), 1, true)) then title = title .. "\n|cffaaaaaa" .. who .. "|r" end
   end
   CM.Arrow:SetAuto(m, x, y, title)
   self.current = id

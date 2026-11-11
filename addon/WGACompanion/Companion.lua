@@ -158,6 +158,17 @@ function C:VoiceNames()
   return out
 end
 
+-- The voice picked in the game's own Options > Accessibility > Text to Speech
+function C:SettingsVoice()
+  if not (C_TTSSettings and Enum and Enum.TtsVoiceType) then return nil end
+  local okN, name = pcall(C_TTSSettings.GetVoiceOptionName, Enum.TtsVoiceType.Standard)
+  local okI, id = pcall(C_TTSSettings.GetVoiceOptionID, Enum.TtsVoiceType.Standard)
+  return okN and name or nil, okI and id or nil
+end
+
+-- Ask the game to (re)load the voice list; it fills in a moment later
+CM:On("VOICE_CHAT_TTS_VOICES_UPDATE", function() C.voicesLoaded = true end)
+
 -- Frame -------------------------------------------------------------------------------------------
 function C:Build(anchor)
   if self.frame then return end
@@ -333,7 +344,8 @@ function C:Command(rest)
     CM.GuideWindow:Refresh()
     CM:Print("Companion %s.", s.companion ~= false and "on" or "off")
   elseif cmd == "voice" and arg ~= "" and tonumber(arg) then
-    s.companionVoice = tonumber(arg)
+    s.companionVoice = tonumber(arg) > 0 and tonumber(arg) or nil
+    if not s.companionVoice then CM:Print("Companion follows the game's Text to Speech voice.") self:Speak(true) return end
     CM:Print("Companion voice %d: %s", s.companionVoice, self:VoiceNames()[s.companionVoice] or "?")
     self:Speak(true)
   elseif cmd == "voice" or cmd == "talk" then
@@ -343,7 +355,14 @@ function C:Command(rest)
     CM:Print("Companion voice %s.", s.companionVoiceOn and "on" or "off")
     if s.companionVoiceOn then self:Speak(true) end
   elseif cmd == "voices" then
-    for i, n in ipairs(self:VoiceNames()) do CM:Print("  %d. %s", i, n) end
+    local names = self:VoiceNames()
+    for i, n in ipairs(names) do CM:Print("  %d. %s", i, n) end
+    local sname = self:SettingsVoice()
+    if #names == 0 then
+      CM:Print("The game hasn't given addons a voice list. Pick your voice in Options > Accessibility > Text to Speech instead; the companion uses that voice.")
+    end
+    CM:Print("Game's Text to Speech voice: %s%s", sname or "unknown",
+      s.companionVoice and string.format(" (companion overrides it with voice %d; /wga companion voice 0 to follow the game)", s.companionVoice) or " (companion uses this one)")
   elseif cmd == "rate" then
     s.companionRate = math.max(-10, math.min(10, tonumber(arg) or 0))
     CM:Print("Companion speaking speed %d.", s.companionRate)

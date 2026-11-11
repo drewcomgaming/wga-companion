@@ -468,6 +468,8 @@ function UI:BuildSettings(body)
       { "Mark mobs you still need", "questPlates" },
       { "WGA quest tracker", "tracker", function() if CM.Tracker then CM.Tracker:Update() end end },
       { "Hide Blizzard's tracker", "hideBlizzTracker", function() if CM.Tracker then CM.Tracker:ApplyBlizzard() end end },
+      { "Auto accept & turn in", "autoQuest" },
+      { "Auto pick quest rewards", "autoReward" },
     } },
     { "Economy", {
       { "Prices in tooltips", "tooltip" },

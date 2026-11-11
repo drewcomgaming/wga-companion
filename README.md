@@ -54,6 +54,14 @@ The Smart Guide has two styles, switched with the **E / C** button in the guide 
 
 Dungeon quests are tagged "dungeon" and can be switched off in Settings.
 
+## Auto accept, turn in and rewards
+
+Like Zygor: talk to a quest giver and WGA Companion picks the quest the guide wants, accepts it, and hands in finished quests. Quests the Efficient style would skip (cloth donations, battleground and off-level quests) are left alone; Completionist takes everything except repeatables.
+
+For reward choices it takes a **real upgrade** when one is on offer: gear your class should wear (armor type, weapon skills, the right stats) that is at least 5 item levels better than what you have in that slot, or fills an empty slot. Otherwise it takes the reward **worth the most gold** (auction price after cut, or vendor price).
+
+Hold **Shift** while talking to an NPC to do it by hand. Settings has switches for both; `/wga auto`, `/wga auto rewards`, `/wga auto upgrade <n>` from chat.
+
 ## Talking companion
 
 A little guide character (Whirl, by default) sits on top of the guide window. Every time the step changes it explains, in plain words, what to do next, who to see, how far away it is and which way to go, and whether the quest is tough for your level. It also cheers on level-ups and turn-ins, and warns you about full bags, a nearly full quest log and rares nearby.

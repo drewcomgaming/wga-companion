@@ -5,7 +5,7 @@ local _, CM = ...
 local A = CM:NewModule("Arrow")
 
 local ARRIVE_YARDS = 10
-local target, temp -- { m, x, y, title }  temp = { ..., expires }
+local target, temp, auto -- { m, x, y, title }  temp = { ..., expires }; auto = quest arrow (lowest priority)
 
 local function worldPos(mapID, x, y)
   local cont, w = C_Map.GetWorldPosFromMapPos(mapID, CreateVector2D(x, y))
@@ -56,7 +56,6 @@ function A:Build()
   f:SetSize(56, 56)
   f:SetPoint("TOP", UIParent, "TOP", 0, -140)
   f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
-  f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
   f:SetClampedToScreen(true)
   f.tex = f:CreateTexture(nil, "ARTWORK")
   f.tex:SetAllPoints()
@@ -66,7 +65,13 @@ function A:Build()
   f.title:SetWidth(240)
   f.dist = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   f.dist:SetPoint("TOP", f.title, "BOTTOM", 0, -1)
-  f:SetScript("OnMouseUp", function(_, button) if button == "RightButton" then A:SetTarget(nil); temp = nil; f:Hide() end end)
+  f:SetScript("OnDragStart", function(self) self.dragging = true; self:StartMoving() end)
+  f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); C_Timer.After(0, function() self.dragging = false end) end)
+  f:SetScript("OnMouseUp", function(self, button)
+    if self.dragging then return end
+    if button == "RightButton" then A:SetTarget(nil); temp = nil; if not auto then f:Hide() end
+    elseif button == "LeftButton" and A:Active() == auto and CM.QuestNav then CM.QuestNav:Next() end
+  end)
   local elapsed = 0
   f:SetScript("OnUpdate", function(_, e)
     elapsed = elapsed + e
@@ -80,7 +85,7 @@ end
 
 function A:Active()
   if temp and GetTime() > temp.expires then temp = nil end
-  return temp or target
+  return temp or target or auto
 end
 
 function A:Tick()
@@ -106,7 +111,7 @@ function A:Tick()
   end
   if dist < ARRIVE_YARDS then
     if t == temp then temp = nil
-    elseif CM.Guides then CM.Guides:OnArrive() end
+    elseif t == target and CM.Guides then CM.Guides:OnArrive() end
   end
 end
 
@@ -144,4 +149,17 @@ function A:Toggle()
   CM.db.settings.arrow = CM.db.settings.arrow == false
   CM:Print("Arrow %s.", CM.db.settings.arrow and "on" or "off")
   self.frame:SetShown(CM.db.settings.arrow and self:Active() ~= nil)
+end
+
+-- Quest arrow target from QuestNav; shown only when there is no guide or temporary target.
+function A:SetAuto(m, x, y, title)
+  self:Build()
+  if m then
+    if not auto then auto = {} end
+    auto.m, auto.x, auto.y, auto.title = m, x, y, title
+  else
+    auto = nil
+  end
+  if CM.db and CM.db.settings.arrow == false then self.frame:Hide() return end
+  self.frame:SetShown(self:Active() ~= nil)
 end

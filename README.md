@@ -7,6 +7,14 @@ The official WoW Forever addon of **Whirlwind Gaming Academy**: step-by-step que
 2. For region-wide prices, download **WGACompanion_Data.zip** from the [prices-us release](../../releases/tag/prices-us) and unzip it next to it. It updates hourly; replace the folder and `/reload` to refresh.
 3. In game: `/wga`.
 
+## Quest navigation
+
+With no guide loaded, the arrow points at your tracked quest (click one in the objective tracker), or the closest quest in your log. Left-click the arrow to cycle quests.
+
+- Locations come from the game's own quest map data first. WGA also learns spots: whenever you see a mob you still need, or an objective counts up, it saves where you are. Learned spots show as dots on the world map while the objective is open.
+- Mobs you still need get a "!" over their nameplate. This is read from the game's own quest lines on the unit's tooltip.
+- `/wga quest arrow | pins | marks` toggles each part, and `/wga quest why` shows where the arrow's location came from.
+
 ## Repo layout
 | Path | What |
 | --- | --- |

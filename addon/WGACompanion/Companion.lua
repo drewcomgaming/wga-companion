@@ -166,20 +166,55 @@ function C:SettingsVoice()
   return okN and name or nil, okI and id or nil
 end
 
+hooksecurefunc(CM.GuideWindow, "Hide", function() if C.frame then C.frame:Hide() end end)
+
 -- Ask the game to (re)load the voice list; it fills in a moment later
 CM:On("VOICE_CHAT_TTS_VOICES_UPDATE", function() C.voicesLoaded = true end)
 
 -- Frame -------------------------------------------------------------------------------------------
+local function charDB()
+  WGACompanionCharDB.companion = WGACompanionCharDB.companion or {}
+  return WGACompanionCharDB.companion
+end
+
+-- Its own window. Sits just above the guide window until you drag it somewhere else.
+function C:Place()
+  local f, gw = self.frame, CM.GuideWindow and CM.GuideWindow.frame
+  if not f then return end
+  f:ClearAllPoints()
+  local pos = charDB().pos
+  if pos then
+    f:SetPoint(pos[1], UIParent, pos[1], pos[2], pos[3])
+  elseif gw then
+    f:SetPoint("BOTTOMLEFT", gw, "TOPLEFT", 0, 8)
+  else
+    f:SetPoint("CENTER")
+  end
+end
+
 function C:Build(anchor)
   if self.frame then return end
-  local f = CreateFrame("Frame", "WGACompanionBuddy", anchor)
-  f:SetPoint("BOTTOMLEFT", anchor, "TOPLEFT", 0, 4)
-  f:SetPoint("BOTTOMRIGHT", anchor, "TOPRIGHT", 0, 4)
-  f:SetHeight(76)
+  local f = CreateFrame("Frame", "WGACompanionBuddy", UIParent)
+  f:SetSize(340, 80)
+  f:SetFrameStrata("MEDIUM")
+  f:SetClampedToScreen(true)
+  f:SetMovable(true)
+  f:EnableMouse(true)
+  f:RegisterForDrag("LeftButton")
+  f:SetScript("OnDragStart", function() f:StartMoving() end)
+  f:SetScript("OnDragStop", function()
+    f:StopMovingOrSizing()
+    local point, _, _, x, y = f:GetPoint()
+    charDB().pos = { point, x, y }
+  end)
+  f:SetScript("OnMouseUp", function(_, button)
+    if button == "RightButton" and IsShiftKeyDown() then charDB().pos = nil; C:Place() end
+  end)
+  T:Skin(f, "bg", "border")
   f.portrait = CreateFrame("Frame", nil, f)
-  f.portrait:SetSize(70, 70)
-  f.portrait:SetPoint("BOTTOMLEFT", 0, 0)
-  T:Skin(f.portrait, "bg", "accent")
+  f.portrait:SetSize(64, 64)
+  f.portrait:SetPoint("TOPLEFT", 8, -8)
+  T:Skin(f.portrait, "panel", "accent")
   f.model = CreateFrame("PlayerModel", nil, f.portrait)
   f.model:SetPoint("TOPLEFT", 1, -1); f.model:SetPoint("BOTTOMRIGHT", -1, 1)
   f.portrait:EnableMouse(true)
@@ -191,19 +226,14 @@ function C:Build(anchor)
     GameTooltip:AddLine(S().companionName or "Whirl")
     GameTooltip:AddLine("Click: say that again", 1, 1, 1)
     GameTooltip:AddLine("Right-click: change my look", 1, 1, 1)
+    GameTooltip:AddLine("Drag the window to move it; Shift + right-click it to put it back", 1, 1, 1)
     GameTooltip:Show()
   end)
   f.portrait:SetScript("OnLeave", GameTooltip_Hide)
 
   f.bubble = CreateFrame("Frame", nil, f)
-  f.bubble:SetPoint("TOPLEFT", f, "TOPLEFT", 78, 0)
-  f.bubble:SetPoint("BOTTOMRIGHT", 0, 0)
-  T:Skin(f.bubble, "panel", "border")
-  f.tail = f.bubble:CreateTexture(nil, "ARTWORK")
-  f.tail:SetTexture("Interface\\Buttons\\WHITE8x8")
-  f.tail:SetSize(8, 8)
-  f.tail:SetPoint("RIGHT", f.bubble, "LEFT", 4, -10)
-  pcall(f.tail.SetRotation, f.tail, math.rad(45))
+  f.bubble:SetPoint("TOPLEFT", f.portrait, "TOPRIGHT", 8, 2)
+  f.bubble:SetPoint("BOTTOMRIGHT", -6, 6)
   f.name = T:Text(f.bubble, 11, "heading")
   f.name:SetPoint("TOPLEFT", 8, -6)
   f.voice = T:Button(f.bubble, "", 11, function()
@@ -227,8 +257,6 @@ end
 function C:Paint()
   local f = self.frame
   if not f then return end
-  local p = T:Get()
-  f.tail:SetVertexColor(p.panel[1], p.panel[2], p.panel[3], 1)
   f.name:SetText(S().companionName or "Whirl")
   f.voice.text:SetText(S().companionVoiceOn and "Voice: on" or "Voice: off")
 end
@@ -260,8 +288,8 @@ function C:OnStep(step)
   if S().companion == false then if self.frame then self.frame:Hide() end return end
   local gw = CM.GuideWindow.frame
   if not gw then return end
-  self:Build(gw)
-  self.frame:Show()
+  if not self.frame then self:Build(gw); self:Place() end
+  self.frame:SetShown(gw:IsShown())
   local key = step and table.concat({ step.kind or "", step.quest or "", step.npc or "", step.guideIndex or "" }, ":") or "none"
   self.step = step
   if key ~= self.lastKey then
@@ -285,8 +313,8 @@ end
 function C:Fit()
   local f = self.frame
   if not f then return end
-  local h = (f.text:GetStringHeight() or 0) + 30
-  f:SetHeight(math.max(76, math.min(h, 220)))
+  local h = (f.text:GetStringHeight() or 0) + 40
+  f:SetHeight(math.max(80, math.min(h, 320)))
 end
 
 -- A one-off remark that interrupts the step explanation for a moment.

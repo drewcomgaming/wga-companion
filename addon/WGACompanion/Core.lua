@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.16.3"
+CM.version = "0.17.0"
 CM.modules = {}
 CM.Data = CM.Data or {}
 

@@ -330,79 +330,27 @@ local function onMap(sm, x, y, mapID)
 end
 
 local ADDON_ICONS = "Interface\\AddOns\\WGACompanion\\Icons\\"
--- texture, tint (r, g, b), size in screen pixels, glow colour
+-- texture, tint (r, g, b), size in screen pixels
 local STYLE = {
-  slay    = { ADDON_ICONS .. "slay_mono", 1, 0.35, 0.3, 20 },
-  loot    = { ADDON_ICONS .. "loot_mono", 1, 0.82, 0.2, 20 },
-  object  = { ADDON_ICONS .. "object_mono", 0.4, 0.78, 1, 20 },
-  learned = { ADDON_ICONS .. "node", 0.4, 1, 0.4, 14 },
-  avail   = { "Interface\\GossipFrame\\AvailableQuestIcon", 1, 1, 1, 20, true },
-  turnin  = { "Interface\\GossipFrame\\ActiveQuestIcon", 1, 1, 1, 20, true },
+  slay    = { ADDON_ICONS .. "slay_mono", 1, 0.35, 0.3, 13 },
+  loot    = { ADDON_ICONS .. "loot_mono", 1, 0.82, 0.2, 13 },
+  object  = { ADDON_ICONS .. "object_mono", 0.4, 0.78, 1, 13 },
+  learned = { ADDON_ICONS .. "node", 0.4, 1, 0.4, 10 },
+  avail   = { "Interface\\GossipFrame\\AvailableQuestIcon", 1, 1, 1, 17 },
+  turnin  = { "Interface\\GossipFrame\\ActiveQuestIcon", 1, 1, 1, 17 },
 }
+N.STYLE = STYLE
 
-function N:DrawMap()
-  for _, p in ipairs(pins) do p:Hide() end
-  local wm = WorldMapFrame
-  if not CM.db or CM.db.settings.questPins == false or not wm or not wm:IsShown() then return end
-  local mapID = wm.GetMapID and wm:GetMapID()
-  local canvas = wm.GetCanvas and wm:GetCanvas()
-  if not mapID or not canvas then return end
-  local w, h = canvas:GetSize()
-  -- keep icons the same size on screen at any map zoom
-  local cs = canvas:GetEffectiveScale()
-  local unit = (CM.db.settings.pinScale or 1) * (cs > 0 and UIParent:GetEffectiveScale() / cs or 1)
-  self.drawnScale = canvas:GetEffectiveScale()
-  local n = 0
-  -- nearby spawns of the same thing become one icon placed at their centre
-  local clusters = {}
-  local function pin(x, y, kind, title, text, key)
-    if n >= MAX_PINS or not x or x < 0 or x > 1 or y < 0 or y > 1 then return end
-    local list
-    if key then
-      local rad = (kind == "avail" or kind == "turnin") and 0.012 or 0.045
-      list = clusters[key]
-      if not list then list = {} clusters[key] = list end
-      for _, c in ipairs(list) do
-        if (c.cx - x) ^ 2 + (c.cy - y) ^ 2 < rad * rad then
-          c.n, c.sx, c.sy = c.n + 1, c.sx + x, c.sy + y
-          c.cx, c.cy = c.sx / c.n, c.sy / c.n
-          c.p.count = c.n
-          return
-        end
-      end
-    end
-    n = n + 1
-    local p = pins[n] or newPin(canvas)
-    p:SetParent(canvas)
-    local st = STYLE[kind] or STYLE.slay
-    local size = st[5] * unit
-    p:SetSize(size, size)
-    p:SetFrameLevel(canvas:GetFrameLevel() + ((kind == "avail" or kind == "turnin") and 2100 or 2000))
-    p:ClearAllPoints()
-    p:SetPoint("CENTER", canvas, "TOPLEFT", x * w, -y * h)
-    p.tex:SetTexture(st[1])
-    p.tex:SetVertexColor(st[2], st[3], st[4])
-    if st[6] then -- quest givers and turn-ins sit on a dark disc with a gold rim
-      p.glow:SetSize(size * 1.45, size * 1.45)
-      p.glow:Show()
-    else
-      p.glow:Hide()
-    end
-    p.title, p.text, p.m, p.x, p.y, p.count = title, text, mapID, x, y, 1
-    p:Show()
-    if list then table.insert(list, { n = 1, sx = x, sy = y, cx = x, cy = y, p = p }) end
-  end
-  local function place()
-    for _, list in pairs(clusters) do
-      for _, c in ipairs(list) do
-        if c.n > 1 then
-          c.p:ClearAllPoints()
-          c.p:SetPoint("CENTER", canvas, "TOPLEFT", c.cx * w, -c.cy * h)
-          c.p.x, c.p.y = c.cx, c.cy
-        end
-      end
-    end
-  end
+local function styleIcon(p, kind, size)
+  local st = STYLE[kind] or STYLE.slay
+  p:SetSize(st[5] * size, st[5] * size)
+  p.tex:SetTexture(st[1])
+  p.tex:SetVertexColor(st[2], st[3], st[4])
+  p.glow:Hide()
+end
+
+-- Everything worth showing on one map: emit(x, y, kind, title, text), x/y as 0-1 fractions.
+function N:Collect(mapID, emit)
   local QD = CM.QData
   -- quests in the log: objectives still open, or where to turn in
   for i = 1, QL.GetNumQuestLogEntries() do
@@ -413,7 +361,7 @@ function N:DrawMap()
         for _, e in ipairs(QD:Has() and QD:Finishers(id) or {}) do
           local sp = QD:Spawns(e[1], e[2])
           local list = sp and sp[mapID]
-          for k = 1, list and #list or 0, 2 do pin(list[k], list[k + 1], "turnin", questTitle(id), "Turn in: " .. (QD:Name(e[1], e[2]) or "?"), "t" .. id) end
+          for k = 1, list and #list or 0, 2 do emit(list[k], list[k + 1], "turnin", questTitle(id), "Turn in: " .. (QD:Name(e[1], e[2]) or "?")) end
         end
       else
         for idx, o in ipairs(QL.GetQuestObjectives(id) or {}) do
@@ -422,12 +370,12 @@ function N:DrawMap()
               local sp = QD:Spawns(e[1], e[2])
               local list = sp and sp[mapID]
               for k = 1, list and #list or 0, 2 do
-                pin(list[k], list[k + 1], e[3] or "slay", questTitle(id), (QD:Name(e[1], e[2]) or "") .. "\n" .. (o.text or ""), id .. ":" .. idx .. ":" .. (e[3] or ""))
+                emit(list[k], list[k + 1], e[3] or "slay", questTitle(id), (QD:Name(e[1], e[2]) or "") .. "\n" .. (o.text or ""))
               end
             end
             for _, s in ipairs((spots()[id] or {})[idx] or {}) do
               local x, y = onMap(s[1], s[2], s[3], mapID)
-              pin(x, y, "learned", questTitle(id), (o.text or "") .. "\n|cff808080Learned spot|r", "l" .. id .. ":" .. idx)
+              if x then emit(x, y, "learned", questTitle(id), (o.text or "") .. "\n|cff808080Learned spot|r") end
             end
           end
         end
@@ -441,14 +389,118 @@ function N:DrawMap()
         local sp = QD:Spawns(e[1], e[2])
         local list = sp and sp[mapID]
         for k = 1, list and #list or 0, 2 do
-          pin(list[k], list[k + 1], "avail", string.format("|cffffd100%s|r (%d)", QD:Title(id) or "?", QD:Level(id) or 0),
-            "Quest giver: " .. (QD:Name(e[1], e[2]) or "?"), "a" .. id)
+          emit(list[k], list[k + 1], "avail", string.format("|cffffd100%s|r (%d)", QD:Title(id) or "?", QD:Level(id) or 0),
+            "Quest giver: " .. (QD:Name(e[1], e[2]) or "?"))
         end
       end
     end
   end
-  place()
+end
+
+function N:DrawMap()
+  for _, p in ipairs(pins) do p:Hide() end
+  local wm = WorldMapFrame
+  if not CM.db or CM.db.settings.questPins == false or not wm or not wm:IsShown() then return end
+  local mapID = wm.GetMapID and wm:GetMapID()
+  local canvas = wm.GetCanvas and wm:GetCanvas()
+  if not mapID or not canvas then return end
+  local w, h = canvas:GetSize()
+  -- same size on screen at any zoom, in the small and the maximized map
+  local cs = canvas:GetEffectiveScale()
+  local unit = (CM.db.settings.pinScale or 1) * (cs > 0 and UIParent:GetEffectiveScale() / cs or 1)
+  self.drawnScale = cs
+  local n, seen = 0, {}
+  self:Collect(mapID, function(x, y, kind, title, text)
+    if n >= MAX_PINS or not x or x < 0 or x > 1 or y < 0 or y > 1 then return end
+    local key = kind .. math.floor(x * 400) .. ":" .. math.floor(y * 400) -- drop exact overlaps
+    if seen[key] then return end
+    seen[key] = true
+    n = n + 1
+    local p = pins[n] or newPin(canvas)
+    p:SetParent(canvas)
+    styleIcon(p, kind, unit)
+    p:SetFrameLevel(canvas:GetFrameLevel() + ((kind == "avail" or kind == "turnin") and 2100 or 2000))
+    p:ClearAllPoints()
+    p:SetPoint("CENTER", canvas, "TOPLEFT", x * w, -y * h)
+    p.title, p.text, p.m, p.x, p.y, p.count = title, text, mapID, x, y, 1
+    p:Show()
+  end)
   self.mapDirty = false
+end
+
+-- Minimap icons -------------------------------------------------------------------------------------
+-- Minimap view diameter in yards per zoom level (used when the client has no C_Minimap.GetViewRadius)
+local MM_OUTDOOR = { 466 + 2 / 3, 400, 333 + 1 / 3, 266 + 2 / 3, 200, 133 + 1 / 3 }
+local MM_INDOOR = { 300, 240, 180, 120, 80, 50 }
+local mmPins, mmPoints, mmMap = {}, {}, nil
+
+local function mmPin(i)
+  local p = mmPins[i]
+  if p then return p end
+  p = newPin(Minimap)
+  table.remove(pins) -- newPin registers world map pins; keep minimap pins separate
+  p:SetFrameStrata(Minimap:GetFrameStrata())
+  p:SetFrameLevel(Minimap:GetFrameLevel() + 5)
+  mmPins[i] = p
+  return p
+end
+
+function N:CollectMinimap()
+  wipe(mmPoints)
+  mmMap = C_Map.GetBestMapForUnit("player")
+  if not mmMap or not CM.db or CM.db.settings.questMinimap == false then return end
+  local seen = {}
+  self:Collect(mmMap, function(x, y, kind, title, text)
+    local key = kind .. math.floor(x * 400) .. ":" .. math.floor(y * 400)
+    if seen[key] then return end
+    seen[key] = true
+    local cont, wp = C_Map.GetWorldPosFromMapPos(mmMap, CreateVector2D(x, y))
+    if cont and wp then table.insert(mmPoints, { wp.x, wp.y, cont, kind, title, text, x, y }) end
+  end)
+end
+
+function N:UpdateMinimap()
+  local shown = 0
+  if mmMap and #mmPoints > 0 and Minimap:IsVisible() then
+    local pm = C_Map.GetBestMapForUnit("player")
+    if pm ~= mmMap then self:CollectMinimap() pm = mmMap end
+    local pp = pm and C_Map.GetPlayerMapPosition(pm, "player")
+    local ax = pp and CM.Arrow.Axes(pm)
+    if pp and ax then
+      local pc, pw = C_Map.GetWorldPosFromMapPos(pm, pp)
+      local radius
+      if C_Minimap and C_Minimap.GetViewRadius then radius = C_Minimap.GetViewRadius() end
+      if not radius or radius <= 0 then
+        local z = (Minimap:GetZoom() or 0) + 1
+        radius = ((IsIndoors and IsIndoors()) and MM_INDOOR or MM_OUTDOOR)[z] / 2
+      end
+      local half = Minimap:GetWidth() / 2
+      local ppy = half / radius
+      local rotate = GetCVar and GetCVar("rotateMinimap") == "1"
+      local facing = rotate and CM:Safe(GetPlayerFacing()) or 0
+      local cf, sf = math.cos(facing), math.sin(facing)
+      local scale = CM.db.settings.pinScale or 1
+      for _, pt in ipairs(mmPoints) do
+        if pt[3] == pc then
+          local dx, dy = pt[1] - pw.x, pt[2] - pw.y
+          local east = dx * ax[1] + dy * ax[2]
+          local north = -(dx * ax[3] + dy * ax[4])
+          if rotate then east, north = east * cf + north * sf, -east * sf + north * cf end
+          local sx, sy = east * ppy, north * ppy
+          if sx * sx + sy * sy < (half - 5) ^ 2 then
+            shown = shown + 1
+            local p = mmPin(shown)
+            styleIcon(p, pt[4], scale * 0.9)
+            p:ClearAllPoints()
+            p:SetPoint("CENTER", Minimap, "CENTER", sx, sy)
+            p.title, p.text, p.m, p.x, p.y = pt[5], pt[6], mmMap, pt[7], pt[8]
+            p:Show()
+          end
+        end
+      end
+    end
+  end
+  for i = shown + 1, #mmPins do mmPins[i]:Hide() end
 end
 
 local function hookMap()
@@ -481,6 +533,7 @@ local function refresh()
     N:UpdateArrow()
     refreshPlates()
     if WorldMapFrame and WorldMapFrame:IsShown() then N:DrawMap() end
+    N:CollectMinimap()
   end)
 end
 
@@ -495,6 +548,7 @@ function N:OnLogin()
   rebuildTitles()
   -- re-pick the closest quest every few seconds as you move
   C_Timer.NewTicker(2, function() N:UpdateArrow() end)
+  C_Timer.NewTicker(0.1, function() N:UpdateMinimap() end)
   refresh()
 end
 
@@ -519,6 +573,10 @@ function N:Command(arg)
     if v and v >= 0.5 and v <= 3 then s.pinScale = v end
     CM:Print("Map icon size: %s (use /wga quest size 0.5 to 3).", tostring(s.pinScale or 1))
     self:DrawMap()
+  elseif arg == "minimap" then
+    s.questMinimap = s.questMinimap == false
+    CM:Print("Quest icons on the minimap %s.", s.questMinimap and "on" or "off")
+    self:CollectMinimap()
   elseif arg == "marks" then
     s.questPlates = s.questPlates == false
     CM:Print("Quest mob marks %s.", s.questPlates and "on" or "off")
@@ -535,6 +593,6 @@ function N:Command(arg)
     for _, list in pairs(spots()[id] or {}) do n = n + #list end
     CM:Print("  Game quest-map entries on this map: %d. Learned spots for this quest: %d.", onmap, n)
   else
-    CM:Print("/wga quest [arrow | pins | available | marks | size <n> | why]")
+    CM:Print("/wga quest [arrow | pins | minimap | available | marks | size <n> | why]")
   end
 end

@@ -31,6 +31,8 @@ local function axes(mapID)
   return a
 end
 
+A.WorldPos, A.Axes = worldPos, axes
+
 -- Returns distance (yards), clockwise bearing from north (radians), or nil + reason
 function A:Compute(t)
   local pm = C_Map.GetBestMapForUnit("player")

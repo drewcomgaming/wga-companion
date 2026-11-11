@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.5.3"
+CM.version = "0.5.4"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -22,6 +22,7 @@ local defaults = {
     watchList = {},       -- [lower name] = true, extra NPC names to alert on
     questArrow = true,    -- arrow points at your tracked/closest quest when no guide is loaded
     questPins = true,     -- quest objective and turn-in spots on the world map
+    questMinimap = true,  -- the same quest icons on the minimap
     questAvailable = true, -- "!" on the world map for quests you can pick up
     questPlates = true,   -- "!" over mobs you still need
   },
@@ -244,7 +245,7 @@ SlashCmdList.WGACOMPANION = function(input)
     CM:Print("  /wga rares | tooltip | junk  - toggle features")
     CM:Print("  /wga guide [name]  - show/hide the step guide, or load one")
     CM:Print("  /wga guides | reset | arrow  - list guides, restart guide, toggle arrow")
-    CM:Print("  /wga quest [arrow|pins|available|marks|why]  - quest arrow, map icons and mob marks")
+    CM:Print("  /wga quest [arrow|pins|minimap|available|marks|size|why]  - quest arrow, map icons and mob marks")
     CM:Print("  /wga record start|stop|export  - record your own route as a guide")
     CM:Print("  /wga level | dungeon | prof | gold  - reference pages")
   end

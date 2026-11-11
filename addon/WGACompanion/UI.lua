@@ -468,10 +468,6 @@ function UI:BuildSettings(body)
       { "Mark mobs you still need", "questPlates" },
       { "WGA quest tracker", "tracker", function() if CM.Tracker then CM.Tracker:Update() end end },
       { "Hide Blizzard's tracker", "hideBlizzTracker", function() if CM.Tracker then CM.Tracker:ApplyBlizzard() end end },
-      { "Guide window", "guideWindow", function(v) if v then CM.GuideWindow:Show() else CM.GuideWindow:Hide() end end },
-      { "Guide suggests new quests", "smartAccept", function() CM.GuideWindow:Refresh() end },
-      { "Talking companion", "companion", function() CM.Companion.lastKey = nil; CM.GuideWindow:Refresh() end },
-      { "Companion reads aloud", "companionVoiceOn", function(v) CM.Companion:Paint(); if not v then pcall(C_VoiceChat.StopSpeakingText) end end },
     } },
     { "Economy", {
       { "Prices in tooltips", "tooltip" },
@@ -480,6 +476,14 @@ function UI:BuildSettings(body)
       { "AH shopping lists", "shopping", function(v) if CM.Shopping.frame then CM.Shopping.frame:SetShown(v) end end },
       { "Minimap button", "minimapButton", function(v) CM.MinimapButton:SetShown(v) end },
     } },
+    { "Guide & companion", {
+      { "Guide window", "guideWindow", function(v) if v then CM.GuideWindow:Show() else CM.GuideWindow:Hide() end end },
+      { "Guide suggests new quests", "smartAccept", function() CM.GuideWindow:Refresh() end },
+      { "Efficient levelling only", "guideEfficient", function(v) CM.SmartGuide:SetStyle(v and "efficient" or "completionist") end },
+      { "Include dungeon quests", "guideDungeons", function() CM.GuideWindow:Refresh() end },
+      { "Talking companion", "companion", function() CM.Companion.lastKey = nil; CM.GuideWindow:Refresh() end },
+      { "Companion reads aloud", "companionVoiceOn", function(v) CM.Companion:Paint(); if not v then pcall(C_VoiceChat.StopSpeakingText) end end },
+    }, col = 2 },
     { "Rares & treasures", {
       { "Rare alerts", "rareAlerts" },
       { "Alert card with Target", "rareButton", function(v) if not v and CM.RareButton then CM.RareButton:Hide() end end },
@@ -490,15 +494,23 @@ function UI:BuildSettings(body)
       { "Hide rares you're done with", "rareHideDone", function() CM.RareMap:DrawMap() end },
     } },
   }
-  for ci, col in ipairs(cols) do
-    local x = (ci - 1) * 232
-    heading(col[1], x, -172)
-    for ri, row in ipairs(col[2]) do
+  -- a section with col = n stacks under the previous section in that column
+  local colY, ci = {}, 0
+  for _, sec in ipairs(cols) do
+    local c = sec.col
+    if not c then ci = ci + 1; c = ci end
+    local x = (c - 1) * 232
+    local top = colY[c] and (colY[c] - 10) or -166
+    heading(sec[1], x, top)
+    local y = top - 24
+    for _, row in ipairs(sec[2]) do
       local get, set = setting(row[2], row[3])
       local tg = T:Toggle(page, row[1], get, set)
-      tg:SetPoint("TOPLEFT", x, -196 - (ri - 1) * 28)
+      tg:SetPoint("TOPLEFT", x, y)
       tg:SetWidth(224)
+      y = y - 24
     end
+    colY[c] = y
   end
   local foot = T:Text(page, 11, "muted")
   foot:SetPoint("BOTTOMLEFT", 0, 0)

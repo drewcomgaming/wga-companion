@@ -92,7 +92,14 @@ function C:Explain(step)
     parts[#parts + 1] = string.format("Let's work on %s.", title)
   end
   if where then parts[#parts + 1] = (where == "right here") and "It's right here." or ("It's " .. where .. ".") end
-  local lw = levelWords(step)
+  if step.dungeon then
+    parts[#parts + 1] = step.kind == "accept" and "It's a dungeon quest, so grab it before your next run there."
+      or "This one is done inside a dungeon, so it's best with a group."
+  end
+  if step.later then
+    parts[#parts + 1] = string.format("Heads up, this one isn't great value (%s). Finish it if it's on the way, or drop it.", step.later)
+  end
+  local lw = not step.later and levelWords(step)
   if lw then parts[#parts + 1] = lw end
   return table.concat(parts, " ")
 end

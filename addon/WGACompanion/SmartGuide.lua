@@ -6,8 +6,22 @@ local SG = CM:NewModule("SmartGuide")
 local QL = C_QuestLog
 
 local NEARBY_YARDS = 900   -- quests to pick up within this range (or anywhere on your map)
-local MAX_ACCEPT = 6
-local MAX_STEPS = 14
+-- Two styles: "efficient" picks only quests worth the time for levelling, "completionist" picks everything.
+local LIMITS = {
+  efficient = { accept = 6, steps = 14 },
+  completionist = { accept = 12, steps = 22 },
+}
+
+function SG:Style()
+  return CM.db.settings.guideEfficient == false and "completionist" or "efficient"
+end
+function SG:SetStyle(style)
+  CM.db.settings.guideEfficient = style ~= "completionist"
+  CM:Print("Smart Guide style: %s.", self:Style() == "efficient" and "Efficient levelling (only quests worth the time)"
+    or "Completionist (every quest)")
+  if CM.Companion then CM.Companion.lastKey = nil end
+  if CM.GuideWindow then CM.GuideWindow:Refresh() end
+end
 
 local function S(v) return CM:Safe(v) end
 
@@ -57,6 +71,9 @@ function SG:Collect()
   local steps = {}
   local pm, px, py = here()
   local QD, N = CM.QData, CM.QuestNav
+  local efficient = self:Style() == "efficient"
+  local myLevel = UnitLevel("player") or 1
+  self.skipped = {}
   local inLog = {}
   for i = 1, QL.GetNumQuestLogEntries() do
     local info = QL.GetInfo(i)
@@ -79,24 +96,48 @@ function SG:Collect()
         step.kind = (e and KIND_BY_ENTITY[e[3]]) or "complete"
       end
       if step.npc and CM.Visuals then step.npcID = CM.Visuals:NpcID(step.npc) end
+      step.dungeon = QD:Has() and QD:IsDungeonQuest(id) or nil
+      -- already in the log but poor value: keep it, at the end of the route
+      if efficient and not ready and QD:Has() then step.later = QD:NotWorthIt(id, myLevel) end
       steps[#steps + 1] = step
     end
   end
   -- Quests to pick up nearby
   if QD:Has() and CM.db.settings.smartAccept ~= false then
     local offers = {}
-    for _, id in ipairs(QD:Available()) do
+    local dungeons = CM.db.settings.guideDungeons ~= false
+    local seenSkip = {}
+    for _, id in ipairs(QD:Available(not efficient)) do
       local m, x, y, who = QD:Nearest(QD:Starters(id), pm, px, py)
       if m and not inLog[id] then
         local d = pm and px and yards({ m = pm, x = px, y = py }, { m = m, x = x, y = y })
         if m == pm or (d and d < NEARBY_YARDS) then
-          offers[#offers + 1] = { kind = "accept", verb = "Accept", quest = id, title = QD:Title(id), m = m, x = x, y = y,
-            npc = who, npcID = CM.Visuals and CM.Visuals:NpcID(who), level = QD:Level(id), d = d or math.huge }
+          local why = efficient and QD:NotWorthIt(id, myLevel)
+          local dungeon = QD:IsDungeonQuest(id)
+          if not why and efficient and dungeon and not dungeons then why = "dungeon quest (dungeons are off)" end
+          if why then
+            local t = QD:Title(id)
+            if not seenSkip[t] then
+              seenSkip[t] = true
+              self.skipped[#self.skipped + 1] = { title = t, level = QD:Level(id), why = why }
+            end
+          else
+            offers[#offers + 1] = { kind = "accept", verb = "Accept", quest = id, title = QD:Title(id), m = m, x = x, y = y,
+              npc = who, npcID = CM.Visuals and CM.Visuals:NpcID(who), level = QD:Level(id), d = d or math.huge,
+              dungeon = dungeon or nil }
+          end
         end
       end
     end
-    table.sort(offers, function(a, b) return a.d < b.d end)
-    for i = 1, math.min(#offers, MAX_ACCEPT) do steps[#steps + 1] = offers[i] end
+    -- efficient: quests near your level first when the walk is similar
+    local function cost(o)
+      if not efficient then return o.d end
+      local diff = math.abs((o.level or myLevel) - myLevel)
+      return o.d * (1 + diff * 0.15)
+    end
+    table.sort(offers, function(a, b) return cost(a) < cost(b) end)
+    for i = 1, math.min(#offers, LIMITS[self:Style()].accept) do steps[#steps + 1] = offers[i] end
+    table.sort(self.skipped, function(a, b) return (a.title or "") < (b.title or "") end)
   end
   return steps, pm, px, py
 end
@@ -104,9 +145,10 @@ end
 -- Greedy nearest-next route from where you stand; steps without a location go last.
 function SG:Route()
   local steps, pm, px, py = self:Collect()
-  local placed, rest = {}, {}
+  local placed, rest, later = {}, {}, {}
   for _, s in ipairs(steps) do
-    if s.m and s.x then placed[#placed + 1] = s else rest[#rest + 1] = s end
+    if s.later then later[#later + 1] = s
+    elseif s.m and s.x then placed[#placed + 1] = s else rest[#rest + 1] = s end
   end
   local route = {}
   local cur = pm and px and { m = pm, x = px, y = py }
@@ -124,7 +166,8 @@ function SG:Route()
     cur = s
   end
   for _, s in ipairs(rest) do route[#route + 1] = s end
-  while #route > MAX_STEPS do table.remove(route) end
+  for _, s in ipairs(later) do route[#route + 1] = s end
+  while #route > LIMITS[self:Style()].steps do table.remove(route) end
   return route
 end
 

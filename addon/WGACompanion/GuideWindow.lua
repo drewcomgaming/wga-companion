@@ -130,6 +130,33 @@ function GW:Build()
     GW:Refresh()
   end)
   f.mode:SetPoint("RIGHT", f.min, "LEFT", -2, 0)
+  f.style = iconButton(head, "E", "", function()
+    CM.SmartGuide:SetStyle(CM.SmartGuide:Style() == "efficient" and "completionist" or "efficient")
+  end)
+  f.style:SetPoint("RIGHT", f.mode, "LEFT", -2, 0)
+  f.style:SetScript("OnEnter", function(self)
+    local SG = CM.SmartGuide
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    if SG:Style() == "efficient" then
+      GameTooltip:AddLine("Efficient levelling")
+      GameTooltip:AddLine("Only quests worth the time: near your level, no battleground,", 1, 1, 1)
+      GameTooltip:AddLine("repeatable or hand-in-only quests. Click for Completionist.", 1, 1, 1)
+      local sk = SG.skipped or {}
+      if #sk > 0 then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(string.format("Skipped nearby (%d):", #sk))
+        for i = 1, math.min(#sk, 12) do
+          GameTooltip:AddDoubleLine(sk[i].title or "?", sk[i].why, 0.8, 0.8, 0.8, 0.6, 0.6, 0.6)
+        end
+        if #sk > 12 then GameTooltip:AddLine(string.format("...and %d more", #sk - 12), 0.6, 0.6, 0.6) end
+      end
+    else
+      GameTooltip:AddLine("Completionist")
+      GameTooltip:AddLine("Every quest you can pick up, grey ones included.", 1, 1, 1)
+      GameTooltip:AddLine("Click for Efficient levelling.", 1, 1, 1)
+    end
+    GameTooltip:Show()
+  end)
   local line = head:CreateTexture(nil, "OVERLAY")
   line:SetHeight(2); line:SetPoint("BOTTOMLEFT"); line:SetPoint("BOTTOMRIGHT")
   T:Gradient(line)
@@ -262,7 +289,8 @@ function GW:Steps()
   for _, s in ipairs(route) do
     if s.kind == "accept" then accepts = accepts + 1 elseif s.kind == "turnin" then ready = ready + 1 else open = open + 1 end
   end
-  return route, string.format("Smart route   ·   %d to turn in, %d open, %d to pick up", ready, open, accepts)
+  local style = CM.SmartGuide:Style() == "efficient" and "Efficient" or "Completionist"
+  return route, string.format("%s   ·   %d to turn in, %d open, %d new", style, ready, open, accepts)
 end
 
 function GW:Refresh()
@@ -273,6 +301,8 @@ function GW:Refresh()
   local mode = self:Mode()
   f.title:SetText(mode == "smart" and "WGA Smart Guide" or "WGA Guide")
   f.mode.text:SetText(mode == "smart" and "G" or "S")
+  f.style:SetShown(mode == "smart")
+  f.style.text:SetText(CM.SmartGuide:Style() == "efficient" and "E" or "C")
   local level, frac = CM.SmartGuide:Summary()
   f.sub:SetText(string.format("Level %d  (%d%%)   ·   %s", level, math.floor(frac * 100), subtitle or ""))
   f.xp.bg:SetVertexColor(p.bar[1], p.bar[2], p.bar[3], 1)
@@ -305,7 +335,8 @@ function GW:Refresh()
     local k = KIND[cur.kind] or KIND.complete
     local verbColor = p[k.color] or p.accent
     card.verb:SetText(((cur.verb or (cur.kind and cur.kind:gsub("^%l", string.upper)) or "")):upper()
-      .. (cur.level and cur.level > 0 and string.format("   ·   level %d", cur.level) or ""))
+      .. (cur.level and cur.level > 0 and string.format("   ·   level %d", cur.level) or "")
+      .. (cur.dungeon and "   ·   dungeon" or "") .. (cur.later and "   ·   low value" or ""))
     card.verb:SetTextColor(verbColor[1], verbColor[2], verbColor[3])
     card.title:SetText(cur.title or "")
     card.who:SetText(cur.npc and ((k.talk ~= "" and (k.talk .. " ") or "") .. "|cffffffff" .. cur.npc .. "|r") or (cur.tip or ""))

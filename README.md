@@ -45,6 +45,15 @@ The WGA quest tracker replaces Blizzard's objective list while it's on. Quests a
 
 Every module has an on/off switch in Settings.
 
+### Efficient or Completionist
+
+The Smart Guide has two styles, switched with the **E / C** button in the guide window header, in Settings, or with `/wga guide efficient` and `/wga guide all`.
+
+- **Efficient** (the default) only suggests quests worth the time for levelling: within about 5 levels below to 3 above you, and no battleground, repeatable or hand-in-only quests (like cloth donations). Quests already in your log that have gone grey or are far too high move to the end of the route, marked "low value". Hover the E button to see what was skipped nearby and why.
+- **Completionist** suggests every quest you can pick up, grey ones included.
+
+Dungeon quests are tagged "dungeon" and can be switched off in Settings.
+
 ## Talking companion
 
 A little guide character (Whirl, by default) sits on top of the guide window. Every time the step changes it explains, in plain words, what to do next, who to see, how far away it is and which way to go, and whether the quest is tough for your level. It also cheers on level-ups and turn-ins, and warns you about full bags, a nearly full quest log and rares nearby.

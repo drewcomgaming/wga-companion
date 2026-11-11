@@ -126,10 +126,10 @@ local function greyBelow(level)
   return level - ((ok and g) or 8)
 end
 
-function QD:IsAvailable(id, q, level, side, classBit)
+function QD:IsAvailable(id, q, level, side, classBit, all)
   if done(id) or active(id) then return false end
   if (q[Q_REQ] or 1) > level then return false end
-  if q[Q_LVL] and q[Q_LVL] > 0 and q[Q_LVL] < greyBelow(level) then return false end
+  if not all and q[Q_LVL] and q[Q_LVL] > 0 and q[Q_LVL] < greyBelow(level) then return false end
   if q[Q_SIDE] and q[Q_SIDE] ~= side then return false end
   if q[Q_CLASS] and q[Q_CLASS] > 0 and classBit and bit.band(q[Q_CLASS], classBit) == 0 then return false end
   if q[Q_SKILL] then return false end                       -- profession quests: not shown yet
@@ -145,26 +145,61 @@ function QD:IsAvailable(id, q, level, side, classBit)
   return true
 end
 
-function QD:Available()
-  if avail then return avail end
-  avail = {}
+-- all = true includes grey quests too (completionist).
+local availAll
+function QD:Available(all)
+  if all then
+    if availAll then return availAll end
+  elseif avail then return avail end
+  local out = {}
+  if all then availAll = out else avail = out end
   local d = db()
-  if not d then return avail end
+  if not d then return out end
   local level = UnitLevel("player") or 1
   local side = ({ Alliance = "A", Horde = "H" })[UnitFactionGroup("player") or ""]
   local classID = select(3, UnitClass("player"))
   local classBit = classID and bit.lshift(1, classID - 1)
   for id, q in pairs(d.q) do
-    if (q[Q_STARTS][1][1] or q[Q_STARTS][2][1]) and self:IsAvailable(id, q, level, side, classBit) then
-      table.insert(avail, id)
+    if (q[Q_STARTS][1][1] or q[Q_STARTS][2][1]) and self:IsAvailable(id, q, level, side, classBit, all) then
+      table.insert(out, id)
     end
   end
-  return avail
+  return out
 end
 
-function QD:Invalidate() avail = nil end
+function QD:Invalidate() avail, availAll = nil, nil end
 for _, e in ipairs({ "QUEST_TURNED_IN", "QUEST_ACCEPTED", "QUEST_REMOVED", "PLAYER_LEVEL_UP", "QUEST_LOG_UPDATE" }) do
-  CM:On(e, function() avail = nil end)
+  CM:On(e, function() avail, availAll = nil, nil end)
+end
+
+-- Battlegrounds (zoneOrSort area IDs): Alterac Valley, Warsong Gulch, Arathi Basin
+local BATTLEGROUND = { [2597] = true, [3277] = true, [3358] = true, [-25] = true }
+local REPEATABLE = 1
+
+-- Why a quest isn't worth it for fast levelling, or nil when it is.
+-- level: your level. Used by the Smart Guide's Efficient style.
+function QD:NotWorthIt(id, level)
+  local q = self:Quest(id)
+  if not q then return nil end
+  local lvl = q[Q_LVL] or 0
+  if BATTLEGROUND[q[15] or 0] then return "battleground quest" end
+  if q[Q_FLAGS] and bit.band(q[Q_FLAGS], REPEATABLE) ~= 0 then return "repeatable" end
+  if lvl > 0 and lvl >= level + 4 then return string.format("level %d, too high for now", lvl) end
+  if lvl > 0 and lvl <= level - 6 then return string.format("level %d, too little experience", lvl) end
+  -- hand-in-only quests (bring items to the same NPC, like cloth donations) give little for the run
+  local objs, onlyItems = q[Q_OBJS] or {}, true
+  for _, o in ipairs(objs) do if o[1] ~= "i" then onlyItems = false break end end
+  local st, en = q[Q_STARTS][1] or {}, q[Q_ENDS][1] or {}
+  if #objs > 0 and onlyItems and st[1] and st[1] == en[1] and (q[Q_REQ] or 1) <= lvl - 20 then
+    return "item hand-in"
+  end
+  return nil
+end
+function QD:IsDungeonQuest(id)
+  local q = self:Quest(id)
+  local z = q and q[15]
+  if not z or not self.DungeonAreas then return false end
+  return self:DungeonAreas()[z] == true
 end
 
 function QD:Starters(id)
@@ -211,6 +246,18 @@ function QD:DungeonQuests(name)
   end
   dqCache[name] = out
   return out
+end
+
+local dungeonAreas
+function QD:DungeonAreas()
+  if dungeonAreas then return dungeonAreas end
+  dungeonAreas = {}
+  local d = db()
+  for id, e in pairs(d and d.d or {}) do
+    dungeonAreas[id] = true
+    for _, alt in ipairs(e[2] or {}) do dungeonAreas[alt] = true end
+  end
+  return dungeonAreas
 end
 
 function QD:DungeonEntrance(name)

@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.6.3"
+CM.version = "0.7.0"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -27,6 +27,13 @@ local defaults = {
     questMinimap = true,  -- the same quest icons on the minimap
     questAvailable = true, -- "!" on the world map for quests you can pick up
     questPlates = true,   -- "!" over mobs you still need
+    theme = "dark",       -- dark | light | hcdark | hclight
+    uiScale = 1, fontScale = 1, trackerScale = 1,
+    tracker = true,          -- WGA quest tracker
+    hideBlizzTracker = true, -- hide the default objective tracker while ours is on
+    trackerAlpha = 0.85,
+    trackerCollapsed = {},   -- [zone] = true
+    trackerFolded = {},      -- [questID] = true
   },
 }
 
@@ -230,6 +237,13 @@ SlashCmdList.WGACOMPANION = function(input)
     CM.Guides:Reset()
   elseif cmd == "minimap" or cmd == "button" then
     CM.MinimapButton:SetShown(not (CM.db.settings.minimapButton ~= false))
+  elseif cmd == "theme" then
+    if rest ~= "" then CM.Theme:Set(rest:lower()) else CM.Theme:Cycle() end
+  elseif cmd == "tracker" then
+    CM.db.settings.tracker = not (CM.db.settings.tracker ~= false)
+    CM.Tracker:Update()
+  elseif cmd == "settings" or cmd == "options" then
+    CM.UI:Show("Settings")
   elseif cmd == "arrow" then
     if rest == "reset" then CM.Arrow:ResetPosition() else CM.Arrow:Toggle() end
   elseif cmd == "quest" or cmd == "q" then
@@ -242,6 +256,9 @@ SlashCmdList.WGACOMPANION = function(input)
     CM:Print("Commands:")
     CM:Print("  /wga  - open the window")
     CM:Print("  /wga minimap  - show or hide the minimap button")
+    CM:Print("  /wga settings  - themes, sizes and feature toggles")
+    CM:Print("  /wga theme [dark|light|hcdark|hclight]  - switch theme")
+    CM:Print("  /wga tracker  - show or hide the WGA quest tracker")
     CM:Print("  /wga scan  - scan the auction house (AH window must be open)")
     CM:Print("  /wga price <item name or link>  - show stored prices")
     CM:Print("  /wga house [id]  - list or pick the region auction house (0 = automatic)")

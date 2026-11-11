@@ -33,43 +33,50 @@ local ITEMS = {
   { "What to sell in my bags", function() CM.Merchant:BagReport() end },
   { function() return "Rare alerts: " .. onOff(CM.db.settings.rareAlerts) end, function() SlashCmdList.WGACOMPANION("rares") end },
   "-",
+  { function() return "Quest tracker: " .. onOff(CM.db.settings.tracker) end, function() SlashCmdList.WGACOMPANION("tracker") end },
+  { function() return "Theme: " .. CM.Theme:Get().name end, function() CM.Theme:Cycle() end },
+  { "Settings", function() CM.UI:Show("Settings") end },
   { "Hide this button", function() MB:SetShown(false) end },
 }
 
 function MB:BuildMenu()
   if self.menu then return end
-  local m = CreateFrame("Frame", "WGACompanionMinimapMenu", UIParent, "BackdropTemplate")
+  local T = CM.Theme
+  local m = CreateFrame("Frame", "WGACompanionMinimapMenu", UIParent)
   m:SetFrameStrata("DIALOG")
   m:SetClampedToScreen(true)
-  if m.SetBackdrop then
-    m:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-      tile = true, tileSize = 16, edgeSize = 14, insets = { left = 3, right = 3, top = 3, bottom = 3 } })
-    m:SetBackdropColor(0.05, 0.07, 0.12, 0.95)
-    m:SetBackdropBorderColor(0.4, 0.75, 1, 0.9)
-  end
-  local title = m:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  title:SetPoint("TOPLEFT", 10, -8)
+  T:Skin(m, "panel", "border")
+  local logo = m:CreateTexture(nil, "ARTWORK")
+  logo:SetTexture(ICON)
+  logo:SetSize(18, 18)
+  logo:SetPoint("TOPLEFT", 8, -6)
+  local title = T:Text(m, 13, "heading")
+  title:SetPoint("LEFT", logo, "RIGHT", 6, 0)
   title:SetText("WGA Companion")
+  local line = m:CreateTexture(nil, "ARTWORK")
+  line:SetHeight(2)
+  line:SetPoint("TOPLEFT", 6, -28)
+  line:SetPoint("TOPRIGHT", -6, -28)
+  T:Gradient(line)
   m.rows = {}
-  local y, width = -26, 210
+  local y, width = -34, 220
   for _, item in ipairs(ITEMS) do
     if item == "-" then
-      local line = m:CreateTexture(nil, "ARTWORK")
-      line:SetColorTexture(1, 1, 1, 0.12)
-      line:SetSize(width - 16, 1)
-      line:SetPoint("TOPLEFT", 8, y - 4)
+      local sep = m:CreateTexture(nil, "ARTWORK")
+      sep:SetTexture("Interface\\Buttons\\WHITE8x8")
+      sep:SetSize(width - 16, 1)
+      sep:SetPoint("TOPLEFT", 8, y - 4)
+      sep.wgaSep = true
+      table.insert(m.rows, sep)
       y = y - 9
     else
-      local b = CreateFrame("Button", nil, m)
-      b:SetSize(width - 12, 18)
+      local b = T:Button(m, "", 12)
+      b:SetSize(width - 12, 20)
       b:SetPoint("TOPLEFT", 6, y)
-      b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
-      b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-      b.text:SetPoint("LEFT", 6, 0)
       b.item = item
       b:SetScript("OnClick", function(self) m:Hide(); self.item[2]() end)
       table.insert(m.rows, b)
-      y = y - 18
+      y = y - 20
     end
   end
   m:SetSize(width, -y + 8)
@@ -86,9 +93,14 @@ function MB:ToggleMenu(anchor)
   self:BuildMenu()
   local m = self.menu
   if m:IsShown() then m:Hide() return end
+  local p = CM.Theme:Get()
   for _, b in ipairs(m.rows) do
-    local label = b.item[1]
-    b.text:SetText(type(label) == "function" and label() or label)
+    if b.wgaSep then
+      b:SetVertexColor(p.border[1], p.border[2], p.border[3], 0.6)
+    else
+      local label = b.item[1]
+      b.text:SetText(CM.Theme:Recolor(type(label) == "function" and label() or label))
+    end
   end
   m:ClearAllPoints()
   m:SetPoint("TOPRIGHT", anchor, "BOTTOMLEFT", 4, 4)

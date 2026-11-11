@@ -11,6 +11,21 @@ The official WoW Forever addon of **Whirlwind Gaming Academy**: step-by-step que
 
 A whirlwind button sits on the minimap edge. Left-click opens the hub, right-click opens a quick menu (guides, quest icon toggles, AH scan, bag report), and dragging moves it around the edge. `/wga minimap` shows or hides it.
 
+## Themes, settings and the quest tracker
+
+Open **Settings** at the bottom of the hub's sidebar (or `/wga settings`). Pick one of four themes: Dark, Light, High contrast (dark) and High contrast (light). The high contrast themes use larger, outlined text. `/wga theme` cycles them from chat.
+
+The settings page also has sliders for window, text, map icon and tracker size, plus a switch for every feature.
+
+The WGA quest tracker replaces Blizzard's objective list while it's on. Quests are grouped by zone. Each one shows its objectives with progress bars, the distance to the next spot, and who to turn it in to once it's done.
+- Click a quest to point the arrow at it.
+- Shift-click a quest to open it in the quest log.
+- Right-click a quest to fold it.
+- Click a zone name to collapse that zone.
+- Drag the header to move the tracker.
+
+`/wga tracker` shows or hides it.
+
 ## Quest navigation
 
 With no guide loaded, the arrow points at your tracked quest (click one in the objective tracker), or the closest quest in your log. Left-click the arrow to cycle quests.

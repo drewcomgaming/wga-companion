@@ -33,7 +33,7 @@ local function alert(key, name, tag, where, extra, mapID, x, y, level)
     CM.RareButton:Remember(key, name)
     CM.RareButton:Show({ name = name, tag = tag, where = where, npcID = CM.RareButton.NpcID(key), mapID = mapID, x = x, y = y, level = level })
   end
-  table.insert(R.log, 1, { name = name, tag = tag, where = where, at = date("%H:%M") })
+  table.insert(R.log, 1, { name = name, tag = tag, where = where, at = date("%H:%M"), npc = CM.RareButton and CM.RareButton.NpcID(key) })
   while #R.log > 30 do table.remove(R.log) end
 end
 

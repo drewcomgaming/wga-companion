@@ -3,6 +3,13 @@ local _, CM = ...
 local UI = CM:NewModule("UI")
 
 local LIST_TABS = { Guides = true, Leveling = true, Dungeons = true, Professions = true, Gold = true }
+local MODEL_TABS = { Dungeons = true, Rares = true }
+local PAGE = { -- banner text for tabs without a list
+  Market = { "Auction prices", "Prices from your own scans and the hourly region data" },
+  Crafting = { "Crafting profit", "Open a profession window to see cost, value and profit per recipe" },
+  Flips = { "Vendor flips", "Items vendors sell for less than the auction house pays" },
+  Rares = { "Rares & treasures", "Alerts, recent sightings and the loot WGA has seen them drop" },
+}
 local WIDTH, HEIGHT, SIDE_W, LIST_W = 900, 580, 168, 210
 
 UI.current = "Guides"
@@ -290,6 +297,8 @@ function UI:Build()
   self.list = list
 
   self.text = makeScrollText(body)
+  self.banner = CM.Visuals:BuildBanner(body)
+  self.modelPanel = CM.Visuals:BuildModelPanel(body)
 
   local load = T:Button(body, "Load this guide", 13, function()
     local g = CM.Guides.list[UI.selection.Guides or 1]
@@ -315,9 +324,20 @@ function UI:LayoutFor(tab)
   self.loadButton:SetShown(tab == "Guides" and #CM.Guides.list > 0)
   self.settingsPage:SetShown(isSettings)
   self.text:SetShown(not isSettings)
+  local left = isList and (LIST_W + 24) or 12
+  local top = isMarket and -48 or -12
+  self.banner:SetShown(not isSettings)
+  self.banner:ClearAllPoints()
+  self.banner:SetPoint("TOPLEFT", left, top)
+  self.banner:SetPoint("TOPRIGHT", -12, top)
+  local hasModel = MODEL_TABS[tab] and true or false
+  self.modelPanel:SetShown(hasModel)
+  self.modelPanel:ClearAllPoints()
+  self.modelPanel:SetPoint("TOPRIGHT", self.banner, "BOTTOMRIGHT", 0, -8)
+  self.modelPanel:SetPoint("BOTTOMRIGHT", -12, 12)
   self.text:ClearAllPoints()
-  self.text:SetPoint("TOPLEFT", isList and (LIST_W + 26) or 18, isMarket and -52 or -14)
-  self.text:SetPoint("BOTTOMRIGHT", -12, 12)
+  self.text:SetPoint("TOPLEFT", self.banner, "BOTTOMLEFT", 6, -10)
+  self.text:SetPoint("BOTTOMRIGHT", hasModel and (-12 - 220 - 8) or -12, 12)
   for name, b in pairs(self.nav) do
     b.selected = name == tab
     T:PaintButton(b)
@@ -337,12 +357,17 @@ function UI:FillList(tab)
       b = T:Button(self.list.child, "", 12)
       b:SetSize(w - 6, 22)
       b:SetPoint("TOPLEFT", 0, -(i - 1) * 23)
-      b.text:SetPoint("LEFT", 8, 0)
-      b.text:SetWidth(w - 20)
+      b.icon = b:CreateTexture(nil, "ARTWORK")
+      b.icon:SetSize(16, 16)
+      b.icon:SetPoint("LEFT", 6, 0)
+      b.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+      b.text:SetPoint("LEFT", 28, 0)
+      b.text:SetWidth(w - 40)
       b.text:SetWordWrap(false)
       buttons[i] = b
     end
     b.text:SetText(entry[key])
+    b.icon:SetTexture(CM.Visuals:Icon(tab, entry))
     b.selected = i == sel
     T:PaintButton(b)
     b:SetScript("OnClick", function() UI.selection[tab] = i; UI:Refresh() end)
@@ -476,7 +501,50 @@ function UI:Refresh()
   self:LayoutFor(tab)
   if tab == "Settings" then return end
   if LIST_TABS[tab] then self:FillList(tab) end
+  self:FillVisuals(tab)
   self.text:SetLines(contentLines(tab))
+end
+
+-- Banner art and the 3D model panel for the current page.
+local function playerZoneMap()
+  local m = C_Map.GetBestMapForUnit("player")
+  local info = m and C_Map.GetMapInfo(m)
+  -- climb out of sub-zones and buildings to the zone map, which has the nicest art
+  while info and info.mapType and info.mapType > 3 and info.parentMapID and info.parentMapID > 0 do
+    m = info.parentMapID
+    info = C_Map.GetMapInfo(m)
+  end
+  return m
+end
+
+function UI:FillVisuals(tab)
+  local V = CM.Visuals
+  local data, key = listSource(tab)
+  local entry = data and data[UI.selection[tab] or 1]
+  local icon = V:Icon(tab, entry)
+  if tab == "Dungeons" and entry then
+    local zone = entry.zone and entry.zone:gsub("%s*%b()", "")
+    local map = V:MapID(entry.name) or V:MapID(zone)
+    self.banner:Set(icon, entry.name, string.format("Level %s   ·   %s%s", entry.levels or "?", entry.zone or "",
+      entry.faction and ("   ·   " .. entry.faction) or ""), map)
+    local bosses = V:Bosses(entry)
+    self.modelPanel:SetItems("BOSSES", bosses, "No bosses listed yet")
+  elseif entry then
+    local title = entry[key]
+    local sub = tab == "Guides" and string.format("%s   ·   levels %s   ·   %d steps", entry.faction or "Both factions", entry.levels or "?", #(entry.steps or {}))
+      or (tab == "Leveling" and "Leveling guide") or (tab == "Professions" and "Profession guide") or "Gold making"
+    self.banner:Set(icon, title, sub, playerZoneMap())
+  else
+    local page = PAGE[tab] or { tab, "" }
+    self.banner:Set(icon, page[1], page[2], playerZoneMap())
+  end
+  if tab == "Rares" then
+    local items = {}
+    for _, e in ipairs(CM.RareFinder.log) do
+      if e.npc then items[#items + 1] = { name = e.name, npc = e.npc } end
+    end
+    self.modelPanel:SetItems("RECENT RARES", items, "Rares you spot this session show up here")
+  end
 end
 
 function UI:Show(tab)

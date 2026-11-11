@@ -167,9 +167,15 @@ function UI:Build()
   self.search = search
 
   -- Left list for guide tabs
-  local list = CreateFrame("Frame", nil, f)
+  -- (scrolls when there are more entries than fit, e.g. the dungeon list)
+  local list = CreateFrame("ScrollFrame", "WGACompanionListScroll", f, "UIPanelScrollFrameTemplate")
   list:SetPoint("TOPLEFT", 12, -60)
-  list:SetSize(LIST_W, HEIGHT - 72)
+  list:SetPoint("BOTTOMLEFT", 12, 40)
+  list:SetWidth(LIST_W - 18)
+  local child = CreateFrame("Frame", nil, list)
+  child:SetSize(LIST_W - 18, 10)
+  list:SetScrollChild(child)
+  list.child = child
   list.buttons = {}
   self.list = list
 
@@ -212,13 +218,13 @@ function UI:FillList(tab)
   for i, entry in ipairs(data) do
     local b = buttons[i]
     if not b then
-      b = CreateFrame("Button", nil, self.list)
-      b:SetSize(LIST_W, 18)
+      b = CreateFrame("Button", nil, self.list.child)
+      b:SetSize(LIST_W - 18, 18)
       b:SetPoint("TOPLEFT", 0, -(i - 1) * 19)
       b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
       b.fs = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
       b.fs:SetPoint("LEFT", 4, 0)
-      b.fs:SetWidth(LIST_W - 8)
+      b.fs:SetWidth(LIST_W - 26)
       b.fs:SetJustifyH("LEFT")
       buttons[i] = b
     end
@@ -226,6 +232,7 @@ function UI:FillList(tab)
     b:SetScript("OnClick", function() UI.selection[tab] = i; UI:Refresh() end)
     b:Show()
   end
+  self.list.child:SetHeight(math.max(10, #data * 19))
 end
 
 function UI:Refresh()

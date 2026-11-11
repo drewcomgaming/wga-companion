@@ -86,8 +86,10 @@ function G:Load(name)
   if not self.byName[name] then CM:Print("No guide named '%s'. /wga guides lists them.", name); return end
   WGACompanionCharDB.guide = WGACompanionCharDB.guide or {}
   WGACompanionCharDB.guide.name = name
+  WGACompanionCharDB.guide.mode = "guide"
   self.arrived = nil
   self:Update()
+  if CM.GuideWindow then CM.GuideWindow:Show() end
   CM:Print("Guide loaded: %s", name)
 end
 
@@ -104,29 +106,28 @@ end
 -- Move forward past completed steps; if the guide is finished, chain to the next guide.
 function G:Update()
   local guide = self:Current()
-  if not guide then if self.frame then self.frame:Hide() end; if CM.Arrow then CM.Arrow:SetTarget(nil) end; return end
-  local p = self:Progress()
-  local n = #guide.steps
-  while p.step <= n and self:StepDone(guide.steps[p.step], p.step) do
-    p.step = p.step + 1
-  end
-  if p.step > n then
-    if guide.next and self.byName[guide.next] then
-      CM:Print("Guide complete! Moving on to %s.", guide.next)
-      return self:Load(guide.next)
+  if guide then
+    local p = self:Progress()
+    local n = #guide.steps
+    while p.step <= n and self:StepDone(guide.steps[p.step], p.step) do
+      p.step = p.step + 1
     end
-    CM:Print("Guide complete: %s", guide.name)
+    if p.step > n then
+      if guide.next and self.byName[guide.next] then
+        CM:Print("Guide complete! Moving on to %s.", guide.next)
+        return self:Load(guide.next)
+      end
+      CM:Print("Guide complete: %s", guide.name)
+    end
+    local step = guide.steps[p.step]
+    -- steps without coordinates borrow them from the quest database / learned spots
+    if step and not step.x and step.quest and CM.QuestNav then
+      local m, x, y, _, who = CM.QuestNav:Location(step.quest)
+      if m then step.m, step.x, step.y = m, x * 100, y * 100; step.npc = step.npc or who end
+    end
   end
-  local step = guide.steps[p.step]
-  -- steps without coordinates borrow them from the quest database / harvested locations
-  if step and not step.x and step.quest and CM.QuestDB then
-    local m, x, y, npc = CM.QuestDB:Location(step)
-    if m then step.m, step.x, step.y = m, x, y; step.npc = step.npc or npc end
-  end
-  if CM.Arrow then
-    if step and step.m and step.x then CM.Arrow:SetTarget(step.m, step.x / 100, step.y / 100, self:StepTitle(step)) else CM.Arrow:SetTarget(nil) end
-  end
-  self:RefreshFrame()
+  -- the guide window owns the arrow and shows the steps
+  if CM.GuideWindow then CM.GuideWindow:Refresh() end
 end
 
 function G:Skip(delta)
@@ -180,74 +181,16 @@ function G:StepLines(step)
   return lines
 end
 
--- Viewer frame ---------------------------------------------------------------------
-function G:BuildFrame()
-  if self.frame then return end
-  local f = CreateFrame("Frame", "WGACompanionGuideFrame", UIParent, "BackdropTemplate")
-  f:SetSize(320, 150)
-  f:SetPoint("RIGHT", UIParent, "RIGHT", -60, 120)
-  f:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 14,
-    insets = { left = 3, right = 3, top = 3, bottom = 3 } })
-  f:SetBackdropColor(0, 0, 0, 0.75)
-  f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
-  f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
-  f:SetClampedToScreen(true)
-
-  f.header = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  f.header:SetPoint("TOPLEFT", 8, -7); f.header:SetPoint("TOPRIGHT", -60, -7); f.header:SetJustifyH("LEFT")
-
-  local function btn(label, x, fn, tip)
-    local b = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    b:SetSize(20, 18); b:SetPoint("TOPRIGHT", x, -4); b:SetText(label); b:SetScript("OnClick", fn)
-    b:SetScript("OnEnter", function(s) GameTooltip:SetOwner(s, "ANCHOR_TOP"); GameTooltip:AddLine(tip); GameTooltip:Show() end)
-    b:SetScript("OnLeave", GameTooltip_Hide)
-  end
-  btn(">", -6, function() G:Skip(1) end, "Skip this step")
-  btn("<", -28, function() G:Skip(-1) end, "Previous step")
-  btn("x", -50, function() f:Hide(); if CM.Arrow then CM.Arrow:SetTarget(nil) end end, "Hide (/wga guide to show)")
-
-  f.body = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  f.body:SetPoint("TOPLEFT", 8, -26); f.body:SetPoint("TOPRIGHT", -8, -26)
-  f.body:SetJustifyH("LEFT"); f.body:SetJustifyV("TOP"); f.body:SetSpacing(2)
-
-  -- clicking the frame completes a manual step
-  f:SetScript("OnMouseUp", function(_, button)
-    local guide = G:Current(); if not guide then return end
-    local step = guide.steps[G:Progress().step]
-    if button == "LeftButton" and step and (step.t == "note" or step.t == "goto") then G:Skip(1) end
-  end)
-  self.frame = f
-end
-
-function G:RefreshFrame()
-  local guide = self:Current()
-  if not guide then return end
-  self:BuildFrame()
-  local f = self.frame
-  local p = self:Progress()
-  f.header:SetText(string.format("%s  |cff808080%d/%d|r", guide.name, math.min(p.step, #guide.steps), #guide.steps))
-  local lines = {}
-  for i = p.step, math.min(p.step + 2, #guide.steps) do
-    local sl = self:StepLines(guide.steps[i])
-    if i > p.step then for k, l in ipairs(sl) do sl[k] = "|cff999999" .. l:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. "|r" end; sl = { sl[1] } end
-    for _, l in ipairs(sl) do table.insert(lines, l) end
-  end
-  if p.step > #guide.steps then lines = { "|cff40ff40Guide complete.|r Pick another with /wga guides." } end
-  f.body:SetText(table.concat(lines, "\n"))
-  f:SetHeight(f.body:GetStringHeight() + 36)
-  if not WGACompanionCharDB.guide.hidden then f:Show() end
-end
+-- The window lives in GuideWindow.lua and shows either this guide or the Smart Guide.
+function G:RefreshFrame() if CM.GuideWindow then CM.GuideWindow:Refresh() end end
 
 function G:Toggle()
-  if not self:Current() then
+  local g = WGACompanionCharDB.guide
+  if g and g.mode ~= "smart" and not self:Current() then
     local s = self:Suggest()
-    if s then self:Load(s) else CM:Print("No guide for your level/faction yet. /wga guides lists them.") end
-    return
+    if s then self:Load(s) end
   end
-  self:BuildFrame()
-  local hidden = self.frame:IsShown()
-  WGACompanionCharDB.guide.hidden = hidden
-  if hidden then self.frame:Hide(); CM.Arrow:SetTarget(nil) else self:Update(); self.frame:Show() end
+  CM.GuideWindow:Toggle()
 end
 
 function G:PrintList()

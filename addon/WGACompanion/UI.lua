@@ -463,6 +463,8 @@ function UI:BuildSettings(body)
       { "Mark mobs you still need", "questPlates" },
       { "WGA quest tracker", "tracker", function() if CM.Tracker then CM.Tracker:Update() end end },
       { "Hide Blizzard's tracker", "hideBlizzTracker", function() if CM.Tracker then CM.Tracker:ApplyBlizzard() end end },
+      { "Guide window", "guideWindow", function(v) if v then CM.GuideWindow:Show() else CM.GuideWindow:Hide() end end },
+      { "Guide suggests new quests", "smartAccept", function() CM.GuideWindow:Refresh() end },
     } },
     { "Economy", {
       { "Prices in tooltips", "tooltip" },

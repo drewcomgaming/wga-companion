@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.9.0"
+CM.version = "0.10.0"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -244,6 +244,9 @@ SlashCmdList.WGACOMPANION = function(input)
   elseif cmd == "junk" then
     CM.db.settings.autoSellJunk = not CM.db.settings.autoSellJunk
     CM:Print("Auto-sell grey items %s.", CM.db.settings.autoSellJunk and "on" or "off")
+  elseif cmd == "guide" and rest == "smart" then
+    WGACompanionCharDB.guide.mode = "smart"
+    CM.GuideWindow:Show()
   elseif cmd == "guide" then
     if rest ~= "" then CM.Guides:Load(rest) else CM.Guides:Toggle() end
   elseif cmd == "guides" then
@@ -287,7 +290,8 @@ SlashCmdList.WGACOMPANION = function(input)
     CM:Print("  /wga rares test | ignore <name> | unignore <name>  - rare alert card and filters")
     CM:Print("  /wga keep [item link]  - toggle an item on your keep list, or list it")
     CM:Print("  /wga shop  - show the shopping list panel (at the auction house)")
-    CM:Print("  /wga guide [name]  - show/hide the step guide, or load one")
+    CM:Print("  /wga guide [name]  - show/hide the guide window (Smart Guide or a step guide), or load one")
+    CM:Print("  /wga guide smart  - switch the guide window to the Smart Guide")
     CM:Print("  /wga guides | reset | arrow  - list guides, restart guide, toggle arrow")
     CM:Print("  /wga quest [arrow|pins|minimap|available|marks|size|why]  - quest arrow, map icons and mob marks")
     CM:Print("  /wga record start|stop|export  - record your own route as a guide")

@@ -45,6 +45,17 @@ The WGA quest tracker replaces Blizzard's objective list while it's on. Quests a
 
 Every module has an on/off switch in Settings.
 
+## Guide window and Smart Guide
+
+The guide window is a small window, separate from the hub, that walks you through questing one step at a time. `/wga guide` shows or hides it.
+
+- **Smart Guide** (the default) builds a route from your quest log, your level and where you're standing. It sends you to turn in finished quests, finish open ones, and pick up new quests nearby, in the order that means the least walking.
+- **Step guides** (your recordings, or any guide you load from the hub) run in the same window. Use the S/G button in its header to switch between the two.
+
+The current step shows a 3D model of the NPC or mob, what to do ("Talk to", "Kill", "Loot from", "Use"), where it is and how far away, and a checklist of objectives. The arrow points at it.
+- Click a step under "Coming up" to make it the current step.
+- The "-" button shrinks the window to just the current step.
+
 ## Quest navigation
 
 With no guide loaded, the arrow points at your tracked quest (click one in the objective tracker), or the closest quest in your log. Left-click the arrow to cycle quests.

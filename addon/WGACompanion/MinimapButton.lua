@@ -111,7 +111,7 @@ function MB:Build()
   bg:SetPoint("CENTER")
   local icon = b:CreateTexture(nil, "ARTWORK")
   icon:SetTexture(ICON)
-  icon:SetSize(20, 20)
+  icon:SetSize(22, 22)
   icon:SetPoint("CENTER")
   b.icon = icon
   local border = b:CreateTexture(nil, "OVERLAY")

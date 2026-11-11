@@ -196,7 +196,7 @@ function C:Build(anchor)
   f.portrait:SetScript("OnLeave", GameTooltip_Hide)
 
   f.bubble = CreateFrame("Frame", nil, f)
-  f.bubble:SetPoint("TOPLEFT", f.portrait, "TOPRIGHT", 8, 0)
+  f.bubble:SetPoint("TOPLEFT", f, "TOPLEFT", 78, 0)
   f.bubble:SetPoint("BOTTOMRIGHT", 0, 0)
   T:Skin(f.bubble, "panel", "border")
   f.tail = f.bubble:CreateTexture(nil, "ARTWORK")

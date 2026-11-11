@@ -293,10 +293,12 @@ local pins = {}
 
 local function newPin(canvas)
   local p = CreateFrame("Frame", nil, canvas)
+  p.glow = p:CreateTexture(nil, "BACKGROUND")
+  p.glow:SetPoint("CENTER")
+  p.glow:SetTexture("Interface\\Cooldown\\star4")
+  p.glow:SetBlendMode("ADD")
   p.tex = p:CreateTexture(nil, "OVERLAY")
   p.tex:SetAllPoints()
-  p.tex:SetTexture("Interface\\Minimap\\ObjectIconsAtlas")
-  if p.tex.SetAtlas then pcall(p.tex.SetAtlas, p.tex, "QuestObjective") end
   p:EnableMouse(true)
   p:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -326,11 +328,15 @@ local function onMap(sm, x, y, mapID)
   return pos.x, pos.y
 end
 
-local ICON = {
-  obj = "Interface\\COMMON\\Indicator-Yellow",
-  learned = "Interface\\COMMON\\Indicator-Green",
-  avail = "Interface\\GossipFrame\\AvailableQuestIcon",
-  turnin = "Interface\\GossipFrame\\ActiveQuestIcon",
+local ADDON_ICONS = "Interface\\AddOns\\WGACompanion\\Icons\\"
+-- texture, tint (r, g, b), size in screen pixels, glow colour
+local STYLE = {
+  slay    = { ADDON_ICONS .. "slay_mono", 1, 0.3, 0.25, 18 },
+  loot    = { ADDON_ICONS .. "loot_mono", 1, 0.82, 0.1, 18 },
+  object  = { ADDON_ICONS .. "object_mono", 0.35, 0.75, 1, 18 },
+  learned = { ADDON_ICONS .. "node", 0.3, 1, 0.3, 14 },
+  avail   = { "Interface\\GossipFrame\\AvailableQuestIcon", 1, 1, 1, 30, { 1, 0.85, 0.1 } },
+  turnin  = { "Interface\\GossipFrame\\ActiveQuestIcon", 1, 1, 1, 30, { 1, 0.85, 0.1 } },
 }
 
 function N:DrawMap()
@@ -341,18 +347,31 @@ function N:DrawMap()
   local canvas = wm.GetCanvas and wm:GetCanvas()
   if not mapID or not canvas then return end
   local w, h = canvas:GetSize()
-  local dot, icon = math.max(8, w * 0.009), math.max(14, w * 0.016)
+  -- keep icons the same size on screen at any map zoom
+  local cs = canvas:GetEffectiveScale()
+  local unit = (CM.db.settings.pinScale or 1) * (cs > 0 and UIParent:GetEffectiveScale() / cs or 1)
+  self.drawnScale = canvas:GetEffectiveScale()
   local n = 0
-  local function pin(x, y, kind, title, text, size)
+  local function pin(x, y, kind, title, text)
     if n >= MAX_PINS or not x or x < 0 or x > 1 or y < 0 or y > 1 then return end
     n = n + 1
     local p = pins[n] or newPin(canvas)
     p:SetParent(canvas)
+    local st = STYLE[kind] or STYLE.slay
+    local size = st[5] * unit
     p:SetSize(size, size)
-    p:SetFrameLevel(canvas:GetFrameLevel() + ((kind == "obj" or kind == "learned") and 2000 or 2100))
+    p:SetFrameLevel(canvas:GetFrameLevel() + ((kind == "avail" or kind == "turnin") and 2100 or 2000))
     p:ClearAllPoints()
     p:SetPoint("CENTER", canvas, "TOPLEFT", x * w, -y * h)
-    p.tex:SetTexture(ICON[kind])
+    p.tex:SetTexture(st[1])
+    p.tex:SetVertexColor(st[2], st[3], st[4])
+    if st[6] then
+      p.glow:SetSize(size * 2, size * 2)
+      p.glow:SetVertexColor(st[6][1], st[6][2], st[6][3], 0.9)
+      p.glow:Show()
+    else
+      p.glow:Hide()
+    end
     p.title, p.text, p.m, p.x, p.y = title, text, mapID, x, y
     p:Show()
   end
@@ -366,7 +385,7 @@ function N:DrawMap()
         for _, e in ipairs(QD:Has() and QD:Finishers(id) or {}) do
           local sp = QD:Spawns(e[1], e[2])
           local list = sp and sp[mapID]
-          for k = 1, list and #list or 0, 2 do pin(list[k], list[k + 1], "turnin", questTitle(id), "Turn in: " .. (QD:Name(e[1], e[2]) or "?"), icon) end
+          for k = 1, list and #list or 0, 2 do pin(list[k], list[k + 1], "turnin", questTitle(id), "Turn in: " .. (QD:Name(e[1], e[2]) or "?")) end
         end
       else
         for idx, o in ipairs(QL.GetQuestObjectives(id) or {}) do
@@ -375,12 +394,12 @@ function N:DrawMap()
               local sp = QD:Spawns(e[1], e[2])
               local list = sp and sp[mapID]
               for k = 1, list and #list or 0, 2 do
-                pin(list[k], list[k + 1], "obj", questTitle(id), (QD:Name(e[1], e[2]) or "") .. "\n" .. (o.text or ""), dot)
+                pin(list[k], list[k + 1], e[3] or "slay", questTitle(id), (QD:Name(e[1], e[2]) or "") .. "\n" .. (o.text or ""))
               end
             end
             for _, s in ipairs((spots()[id] or {})[idx] or {}) do
               local x, y = onMap(s[1], s[2], s[3], mapID)
-              pin(x, y, "learned", questTitle(id), (o.text or "") .. "\n|cff808080Learned spot|r", dot)
+              pin(x, y, "learned", questTitle(id), (o.text or "") .. "\n|cff808080Learned spot|r")
             end
           end
         end
@@ -395,7 +414,7 @@ function N:DrawMap()
         local list = sp and sp[mapID]
         for k = 1, list and #list or 0, 2 do
           pin(list[k], list[k + 1], "avail", string.format("|cffffd100%s|r (%d)", QD:Title(id) or "?", QD:Level(id) or 0),
-            "Quest giver: " .. (QD:Name(e[1], e[2]) or "?"), icon)
+            "Quest giver: " .. (QD:Name(e[1], e[2]) or "?"))
         end
       end
     end
@@ -408,6 +427,14 @@ local function hookMap()
   if not wm or N.mapHooked then return end
   N.mapHooked = true
   wm:HookScript("OnShow", function() N:DrawMap() end)
+  local elapsed = 0
+  wm:HookScript("OnUpdate", function(_, e)
+    elapsed = elapsed + e
+    if elapsed < 0.15 then return end
+    elapsed = 0
+    local canvas = wm.GetCanvas and wm:GetCanvas()
+    if canvas and N.drawnScale and math.abs(canvas:GetEffectiveScale() - N.drawnScale) > 0.001 then N:DrawMap() end
+  end)
   if wm.OnMapChanged then hooksecurefunc(wm, "OnMapChanged", function() N:DrawMap() end) end
 end
 
@@ -458,6 +485,11 @@ function N:Command(arg)
     s.questAvailable = s.questAvailable == false
     CM:Print("Available quests on the map %s.", s.questAvailable and "on" or "off")
     self:DrawMap()
+  elseif arg:match("^size") then
+    local v = tonumber(arg:match("^size%s+([%d%.]+)"))
+    if v and v >= 0.5 and v <= 3 then s.pinScale = v end
+    CM:Print("Map icon size: %s (use /wga quest size 0.5 to 3).", tostring(s.pinScale or 1))
+    self:DrawMap()
   elseif arg == "marks" then
     s.questPlates = s.questPlates == false
     CM:Print("Quest mob marks %s.", s.questPlates and "on" or "off")
@@ -474,6 +506,6 @@ function N:Command(arg)
     for _, list in pairs(spots()[id] or {}) do n = n + #list end
     CM:Print("  Game quest-map entries on this map: %d. Learned spots for this quest: %d.", onmap, n)
   else
-    CM:Print("/wga quest [arrow | pins | available | marks | why]")
+    CM:Print("/wga quest [arrow | pins | available | marks | size <n> | why]")
   end
 end

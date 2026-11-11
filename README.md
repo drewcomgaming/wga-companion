@@ -14,7 +14,7 @@ With no guide loaded, the arrow points at your tracked quest (click one in the o
 - Locations come from the bundled quest database first (NPC, object and item drop spawns for every original quest, from QuestieDB). Quests you can pick up show as "!" on the world map, and turn-ins as "?". Click any map icon to point the arrow at it.
 - For content the database doesn't cover yet (most of Forever's new quests), WGA falls back to the game's own quest map data and to spots it learns: whenever you see a mob you still need, or an objective counts up, it saves where you are. Learned spots show as dots on the world map while the objective is open.
 - Mobs you still need get a "!" over their nameplate. This is read from the game's own quest lines on the unit's tooltip.
-- `/wga quest arrow | pins | available | marks` toggles each part, and `/wga quest why` shows where the arrow's location came from.
+- `/wga quest arrow | pins | available | marks` toggles each part, `/wga quest size 1.5` makes map icons bigger,, and `/wga quest why` shows where the arrow's location came from.
 
 ## Repo layout
 | Path | What |
@@ -45,3 +45,5 @@ python3 tools/import_questie.py ../QuestieDB Forever ../Questie
 WGA Companion is free software under the GNU General Public License v3.0 (see `LICENSE`).
 
 Quest, NPC, object and item data comes from [QuestieDB](https://github.com/Questie/QuestieDB) by the Questie team and contributors, also GPL-3.0. WGA Companion is not affiliated with or endorsed by Questie.
+
+The map objective icons in `addon/WGACompanion/Icons` are from [pfQuest](https://github.com/shagu/pfQuest) by Shagu, MIT licensed (see `Icons/MIT.txt`).

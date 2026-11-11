@@ -42,15 +42,18 @@ end
 -- Entities ({kind, id}) where a Questie objective can be done.
 local function entitiesFor(o, out)
   local kind, id = o[1], o[2]
-  if kind == "n" or kind == "o" then
-    table.insert(out, { kind, id })
+  -- third field is how the map draws it: slay (kill), loot (item drop) or object (use/click)
+  if kind == "n" then
+    table.insert(out, { "n", id, "slay" })
+  elseif kind == "o" then
+    table.insert(out, { "o", id, "object" })
   elseif kind == "k" then
-    for _, n in ipairs(id) do table.insert(out, { "n", n }) end
+    for _, n in ipairs(id) do table.insert(out, { "n", n, "slay" }) end
   elseif kind == "i" then
     local it = db().i[id]
     if it then
-      for _, n in ipairs(it[2] or {}) do table.insert(out, { "n", n }) end
-      for _, ob in ipairs(it[3] or {}) do table.insert(out, { "o", ob }) end
+      for _, n in ipairs(it[2] or {}) do table.insert(out, { "n", n, "loot" }) end
+      for _, ob in ipairs(it[3] or {}) do table.insert(out, { "o", ob, "loot" }) end
     end
   end
   return out

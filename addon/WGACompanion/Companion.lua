@@ -92,6 +92,17 @@ function C:Explain(step)
     parts[#parts + 1] = string.format("Let's work on %s.", title)
   end
   if where then parts[#parts + 1] = (where == "right here") and "It's right here." or ("It's " .. where .. ".") end
+  local tr = step.travel
+  if tr and tr.kind ~= "run" and tr.text then
+    parts[#parts + 1] = (tr.kind == "fly" and "Quickest is to take the flight path: "
+      or tr.kind == "hearth" and "Your hearthstone is ready and it's faster: "
+      or "Best way there: ") .. tr.text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "") .. "."
+  end
+  if step.phase == "town" and step.kind == "accept" then
+    parts[#parts + 1] = "Let's grab everything in town before we head out."
+  elseif step.phase == "return" and step.kind == "turnin" then
+    parts[#parts + 1] = "Field work's done, time to cash in."
+  end
   if step.dungeon then
     parts[#parts + 1] = step.kind == "accept" and "It's a dungeon quest, so grab it before your next run there."
       or "This one is done inside a dungeon, so it's best with a group."
@@ -101,7 +112,8 @@ function C:Explain(step)
   end
   local lw = not step.later and levelWords(step)
   if lw then parts[#parts + 1] = lw end
-  return table.concat(parts, " ")
+  local out = table.concat(parts, " "):gsub("^%l", string.upper):gsub("([%.!?] )(%l)", function(a, b) return a .. b:upper() end)
+  return out
 end
 
 -- Voice ------------------------------------------------------------------------------------------

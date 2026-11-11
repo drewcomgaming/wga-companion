@@ -45,6 +45,12 @@ The WGA quest tracker replaces Blizzard's objective list while it's on. Quests a
 
 Every module has an on/off switch in Settings.
 
+### Route planning and travel
+
+In Efficient style the route works like a levelling player would: hand in and pick up everything in the town you're in first, then go out on the field run (grabbing any turn-in that is right on the way, within about 150 yards), then come back for the far turn-ins. If the town is far from you, it doesn't drag you back there first.
+
+For the next stop the guide window also says how to get there: run, take a flight path, or use your hearthstone (or hearth and then fly), whichever is fastest. Flights are only suggested when you can afford them: under a quarter of your money, or up to 60% when it saves at least 3 minutes. WGA learns your flight points and their prices each time you open a flight master, and where your hearthstone goes when you set it at an innkeeper or the first time you use it.
+
 ### Efficient or Completionist
 
 The Smart Guide has two styles, switched with the **E / C** button in the guide window header, in Settings, or with `/wga guide efficient` and `/wga guide all`.

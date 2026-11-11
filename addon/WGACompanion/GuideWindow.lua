@@ -35,6 +35,13 @@ function GW:Mode()
   return "smart"
 end
 
+local TRAVEL_ICON = {
+  run = "Interface\\Icons\\Ability_Rogue_Sprint",
+  fly = "Interface\\Icons\\Ability_Mount_Gryphon_01",
+  hearth = "Interface\\Icons\\INV_Misc_Rune_01",
+  hearthfly = "Interface\\Icons\\INV_Misc_Rune_01",
+}
+
 local function where(s)
   if not s.m or not s.x then return "Location unknown yet" end
   local info = C_Map.GetMapInfo and C_Map.GetMapInfo(s.m)
@@ -351,6 +358,11 @@ function GW:Refresh()
       card.kindIcon:Show(); setIcon(card.kindIcon, cur.kind)
     end
     local lines = {}
+    local tr = cur.travel
+    if tr and tr.text then
+      local icon = TRAVEL_ICON[tr.kind] or TRAVEL_ICON.run
+      lines[#lines + 1] = string.format("|T%s:14:14|t  |cff66ccff%s|r", icon, tr.text)
+    end
     for _, o in ipairs(cur.objectives or {}) do
       lines[#lines + 1] = (o.done and CHECK or OPEN) .. "  " .. (o.done and ("|cff808080" .. o.text .. "|r") or o.text)
     end
@@ -360,7 +372,8 @@ function GW:Refresh()
       if cur.m and cur.x then CM.Arrow:SetTarget(cur.m, cur.x, cur.y, (cur.verb and (cur.verb .. ": ") or "") .. (cur.title or "")) else CM.Arrow:SetTarget(nil) end
     end
   end
-  local objH = (cur and (#(cur.objectives or {}) > 0 or cur.kind == "turnin")) and (card.objs:GetStringHeight() + 12) or 0
+  local objH = (cur and (#(cur.objectives or {}) > 0 or cur.kind == "turnin" or (cur.travel and cur.travel.text)))
+    and (card.objs:GetStringHeight() + 12) or 0
   local cardH = 80 + objH
   card:SetHeight(cardH)
   y = -62 - cardH - 8

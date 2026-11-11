@@ -296,7 +296,7 @@ local function newPin(canvas)
   local p = CreateFrame("Frame", nil, canvas)
   p.glow = p:CreateTexture(nil, "BACKGROUND")
   p.glow:SetPoint("CENTER")
-  p.glow:SetTexture("Interface\\AddOns\\WGACompanion\\Icons\\ring")
+  p.glow:SetTexture("Interface\\AddOns\\WGACompanion\\Icons\\halo")
   p.tex = p:CreateTexture(nil, "OVERLAY")
   p.tex:SetAllPoints()
   p:EnableMouse(true)
@@ -330,14 +330,14 @@ local function onMap(sm, x, y, mapID)
 end
 
 local ADDON_ICONS = "Interface\\AddOns\\WGACompanion\\Icons\\"
--- texture, tint (r, g, b), size in screen pixels
+-- texture, tint (r, g, b), size in screen pixels, halo colour
 local STYLE = {
   slay    = { ADDON_ICONS .. "slay_mono", 1, 0.35, 0.3, 13 },
   loot    = { ADDON_ICONS .. "loot_mono", 1, 0.82, 0.2, 13 },
   object  = { ADDON_ICONS .. "object_mono", 0.4, 0.78, 1, 13 },
   learned = { ADDON_ICONS .. "node", 0.4, 1, 0.4, 10 },
-  avail   = { "Interface\\GossipFrame\\AvailableQuestIcon", 1, 1, 1, 17 },
-  turnin  = { "Interface\\GossipFrame\\ActiveQuestIcon", 1, 1, 1, 17 },
+  avail   = { "Interface\\GossipFrame\\AvailableQuestIcon", 1, 1, 1, 17, { 0.45, 0.8, 1 } },  -- light blue
+  turnin  = { "Interface\\GossipFrame\\ActiveQuestIcon", 1, 1, 1, 17, { 0.25, 1, 0.35 } },  -- green
 }
 N.STYLE = STYLE
 
@@ -346,7 +346,13 @@ local function styleIcon(p, kind, size)
   p:SetSize(st[5] * size, st[5] * size)
   p.tex:SetTexture(st[1])
   p.tex:SetVertexColor(st[2], st[3], st[4])
-  p.glow:Hide()
+  if st[6] then
+    p.glow:SetSize(st[5] * size * 1.55, st[5] * size * 1.55)
+    p.glow:SetVertexColor(st[6][1], st[6][2], st[6][3])
+    p.glow:Show()
+  else
+    p.glow:Hide()
+  end
 end
 
 -- Everything worth showing on one map: emit(x, y, kind, title, text), x/y as 0-1 fractions.

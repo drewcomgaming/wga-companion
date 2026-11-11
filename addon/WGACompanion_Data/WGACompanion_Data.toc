@@ -1,0 +1,7 @@
+## Interface: 16001
+## Title: |cffffd100WGA Companion|r Data
+## Notes: Region auction prices for WGA Companion. Updated hourly; replace this folder with the latest download.
+## Author: Whirlwind Gaming Academy
+## Version: 0
+
+Prices.lua

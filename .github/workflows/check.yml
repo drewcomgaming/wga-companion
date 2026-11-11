@@ -1,0 +1,31 @@
+name: Checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lua:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua 5.1
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lua5.1
+      - name: Syntax-check addon Lua
+        run: |
+          status=0
+          for f in $(find addon -name '*.lua'); do luac5.1 -p "$f" || status=1; done
+          exit $status
+      - name: Check every .toc file entry exists
+        run: |
+          status=0
+          for toc in addon/*/*.toc; do
+            dir=$(dirname "$toc")
+            grep -v '^#' "$toc" | tr -d '\r' | sed 's#\\#/#g' | while read -r f; do
+              [ -z "$f" ] && continue
+              [ -f "$dir/$f" ] || { echo "missing $dir/$f"; exit 1; }
+            done || status=1
+          done
+          exit $status
+      - name: Price job compiles
+        run: python3 -m py_compile pricejob/build_prices.py

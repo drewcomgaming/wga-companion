@@ -2,8 +2,8 @@
 local _, CM = ...
 local UI = CM:NewModule("UI")
 
-local LIST_TABS = { Guides = true, Leveling = true, Dungeons = true, Professions = true, Gold = true }
-local MODEL_TABS = { Dungeons = true, Rares = true }
+local LIST_TABS = { Guides = true, Leveling = true, Professions = true, Gold = true }
+local MODEL_TABS = { Rares = true }
 local PAGE = { -- banner text for tabs without a list
   Market = { "Auction prices", "Prices from your own scans and the hourly region data" },
   Crafting = { "Crafting profit", "Open a profession window to see cost, value and profit per recipe" },
@@ -312,17 +312,20 @@ function UI:Build()
   self.loadButton = load
 
   self.settingsPage = self:BuildSettings(body)
+  self.journal = CM.Journal:Build(body)
   T:OnChange(function() if f:IsShown() then UI:Refresh() end end)
 end
 
 function UI:LayoutFor(tab)
   local isList = LIST_TABS[tab]
   local isMarket = tab == "Market"
-  local isSettings = tab == "Settings"
+  local isJournal = tab == "Dungeons"
+  local isSettings = tab == "Settings" or isJournal
+  self.journal:SetShown(isJournal)
   self.search:SetShown(isMarket)
   self.list.panel:SetShown(isList)
   self.loadButton:SetShown(tab == "Guides" and #CM.Guides.list > 0)
-  self.settingsPage:SetShown(isSettings)
+  self.settingsPage:SetShown(tab == "Settings")
   self.text:SetShown(not isSettings)
   local left = isList and (LIST_W + 24) or 12
   local top = isMarket and -48 or -12
@@ -502,6 +505,10 @@ function UI:Refresh()
   local tab = self.current
   self:LayoutFor(tab)
   if tab == "Settings" then return end
+  if tab == "Dungeons" then
+    if not self.journalOpened then self.journalOpened = true; CM.Journal:Open(nil) else CM.Journal:FillGrid() end
+    return
+  end
   if LIST_TABS[tab] then self:FillList(tab) end
   self:FillVisuals(tab)
   self.text:SetLines(contentLines(tab))

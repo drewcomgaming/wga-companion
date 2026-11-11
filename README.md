@@ -56,6 +56,18 @@ The current step shows a 3D model of the NPC or mob, what to do ("Talk to", "Kil
 - Click a step under "Coming up" to make it the current step.
 - The "-" button shrinks the window to just the current step.
 
+## Dungeon journal
+
+The hub's **Dungeons** page shows every dungeon as a card with its art, level range and number of quests. You can search by dungeon or boss name, and the button at top right switches between dungeons and raids. Open a dungeon to see three tabs:
+
+- **Bosses:** each boss's portrait, a 3D model you can drag to turn, and its loot, with tooltips and prices. Shift-click an item to link it; ctrl-click to try it on. "Only loot my class can use" filters the list.
+- **Map:** the dungeon map, with buttons for each floor and boss portraits pinned where each boss stands.
+- **Quests:** the dungeon's quests and whether each is done, in your log, available, or locked behind an earlier quest or your level. Each quest lists its objectives, who starts it and where to turn it in, and has an arrow button that points to the quest giver.
+
+**Entrance** points the arrow at the dungeon's door.
+
+Art, bosses and loot come from the game's built-in Encounter Journal. Quests come from QuestieDB.
+
 ## Quest navigation
 
 With no guide loaded, the arrow points at your tracked quest (click one in the objective tracker), or the closest quest in your log. Left-click the arrow to cycle quests.

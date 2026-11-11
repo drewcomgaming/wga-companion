@@ -177,3 +177,72 @@ end
 
 function QD:Level(id) local q = self:Quest(id); return q and q[Q_LVL] end
 function QD:Title(id) local q = self:Quest(id); return q and q[Q_NAME] end
+
+-- Dungeons ------------------------------------------------------------------------------------
+local Q_ZONE = 15
+local function normName(s) return (s or ""):lower():gsub("^the ", ""):gsub("[^%w]", "") end
+
+-- The quest database's dungeon entry for a dungeon name: areaID, entry {name, altIDs, entrance}
+function QD:Dungeon(name)
+  local d = db()
+  if not d or not d.d then return nil end
+  local want = normName(name)
+  for id, e in pairs(d.d) do
+    if normName(e[1]) == want then return id, e end
+  end
+end
+
+-- Quests that belong to a dungeon (by the quest's zone), sorted by level.
+local dqCache = {}
+function QD:DungeonQuests(name)
+  if dqCache[name] then return dqCache[name] end
+  local out = {}
+  local id, e = self:Dungeon(name)
+  if id then
+    local zones = { [id] = true }
+    for _, alt in ipairs(e[2] or {}) do zones[alt] = true end
+    local side = ({ Alliance = "A", Horde = "H" })[UnitFactionGroup("player") or ""]
+    for qid, q in pairs(db().q) do
+      if q[Q_ZONE] and zones[q[Q_ZONE]] and (not q[Q_SIDE] or q[Q_SIDE] == side) and not (q[Q_FLAGS] and bit.band(q[Q_FLAGS], 2) ~= 0) then
+        out[#out + 1] = qid
+      end
+    end
+    table.sort(out, function(a, b) return (db().q[a][Q_LVL] or 0) < (db().q[b][Q_LVL] or 0) end)
+  end
+  dqCache[name] = out
+  return out
+end
+
+function QD:DungeonEntrance(name)
+  local _, e = self:Dungeon(name)
+  local ent = e and e[3]
+  if ent then return ent[1], ent[2] / 100, ent[3] / 100 end
+end
+
+-- Status of a quest for the journal: "done", "active", "available", "chain" (needs earlier quests), "level"
+function QD:Status(id)
+  local q = self:Quest(id)
+  if not q then return nil end
+  if done(id) then return "done" end
+  if active(id) then return "active" end
+  for _, p in ipairs(q[Q_PREG] or {}) do if not done(p) then return "chain" end end
+  if q[Q_PRES] then
+    local any = false
+    for _, p in ipairs(q[Q_PRES]) do if done(p) then any = true break end end
+    if not any then return "chain" end
+  end
+  if (q[Q_REQ] or 1) > (UnitLevel("player") or 1) then return "level" end
+  return "available"
+end
+
+function QD:ObjectiveNames(id)
+  local q = self:Quest(id)
+  local out = {}
+  for _, o in ipairs(q and q[Q_OBJS] or {}) do
+    local n = objName(o)
+    if n then out[#out + 1] = (o[1] == "i" and "Collect " or (o[1] == "o" and "Use " or "Kill ")) .. n end
+  end
+  return out
+end
+
+function QD:ReqLevel(id) local q = self:Quest(id); return q and q[Q_REQ] end

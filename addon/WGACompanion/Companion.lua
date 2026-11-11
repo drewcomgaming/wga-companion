@@ -204,7 +204,7 @@ function C:Build(anchor)
   f.voice:SetSize(70, 16); f.voice:SetPoint("TOPRIGHT", -4, -4)
   f.voice.text:ClearAllPoints(); f.voice.text:SetPoint("RIGHT", -4, 0)
   f.text = T:Text(f.bubble, 12, "text")
-  f.text:SetPoint("TOPLEFT", 8, -22); f.text:SetPoint("BOTTOMRIGHT", -8, 6)
+  f.text:SetPoint("TOPLEFT", 8, -22); f.text:SetPoint("TOPRIGHT", -8, -22)
   f.text:SetJustifyV("TOP")
   f.text:SetWordWrap(true)
   T:OnChange(function() C:Paint() end)
@@ -265,7 +265,17 @@ function C:Speak(aloud, text)
   text = text or self:Explain(self.step)
   self.lastText = text
   f.text:SetText(text)
+  self:Fit()
+  C_Timer.After(0, function() self:Fit() end)   -- again once the text has been laid out
   if aloud then self:Say(text) end
+end
+
+-- Grow the bubble (upwards) so the whole line fits.
+function C:Fit()
+  local f = self.frame
+  if not f then return end
+  local h = (f.text:GetStringHeight() or 0) + 30
+  f:SetHeight(math.max(76, math.min(h, 220)))
 end
 
 -- A one-off remark that interrupts the step explanation for a moment.

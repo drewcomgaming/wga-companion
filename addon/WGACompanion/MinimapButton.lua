@@ -7,7 +7,7 @@ local ICON = "Interface\\AddOns\\WGACompanion\\Icons\\logo"
 
 local function place(b)
   local angle = math.rad(CM.db.settings.minimapAngle or 215)
-  local r = Minimap:GetWidth() / 2 + 6
+  local r = Minimap:GetWidth() / 2 + 10
   b:ClearAllPoints()
   b:SetPoint("CENTER", Minimap, "CENTER", math.cos(angle) * r, math.sin(angle) * r)
 end
@@ -99,7 +99,7 @@ end
 function MB:Build()
   if self.button then return end
   local b = CreateFrame("Button", "WGACompanionMinimapButton", Minimap)
-  b:SetSize(31, 31)
+  b:SetSize(40, 40)
   b:SetFrameStrata("MEDIUM")
   b:SetFrameLevel(Minimap:GetFrameLevel() + 8)
   b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -107,16 +107,16 @@ function MB:Build()
   b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
   local bg = b:CreateTexture(nil, "BACKGROUND")
   bg:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
-  bg:SetSize(24, 24)
+  bg:SetSize(32, 32)
   bg:SetPoint("CENTER")
   local icon = b:CreateTexture(nil, "ARTWORK")
   icon:SetTexture(ICON)
-  icon:SetSize(22, 22)
+  icon:SetSize(30, 30)
   icon:SetPoint("CENTER")
   b.icon = icon
   local border = b:CreateTexture(nil, "OVERLAY")
   border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-  border:SetSize(53, 53)
+  border:SetSize(68, 68)
   border:SetPoint("TOPLEFT")
 
   b:SetScript("OnClick", function(self, button)

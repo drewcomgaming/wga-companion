@@ -35,8 +35,9 @@ def log(*a):
 
 
 def token():
-    cid = os.environ.get("BLIZZARD_CLIENT_ID")
-    secret = os.environ.get("BLIZZARD_CLIENT_SECRET")
+    # strip: pasted secrets often carry a trailing space or newline, which Battle.net rejects
+    cid = (os.environ.get("BLIZZARD_CLIENT_ID") or "").strip()
+    secret = (os.environ.get("BLIZZARD_CLIENT_SECRET") or "").strip()
     if not cid or not secret:
         sys.exit("BLIZZARD_CLIENT_ID / BLIZZARD_CLIENT_SECRET are not set (add them as repository secrets).")
     req = urllib.request.Request(
@@ -45,8 +46,14 @@ def token():
         headers={"Authorization": "Basic " + base64.b64encode(f"{cid}:{secret}".encode()).decode(),
                  "Content-Type": "application/x-www-form-urlencoded"},
     )
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.load(r)["access_token"]
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.load(r)["access_token"]
+    except urllib.error.HTTPError as e:
+        if e.code in (400, 401):
+            sys.exit(f"Battle.net rejected the client credentials (HTTP {e.code}). Check that BLIZZARD_CLIENT_ID "
+                     f"holds the Client ID and BLIZZARD_CLIENT_SECRET the Client Secret (id length seen: {len(cid)}).")
+        raise
 
 
 def get(path, tok, tries=3):

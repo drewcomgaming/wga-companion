@@ -61,6 +61,7 @@ CM:On("REPLICATE_ITEM_LIST_UPDATE", function()
     i = last + 1
     if i < total then C_Timer.After(0, step) else
       local n = finish(acc, true)
+      CM.PriceDB:Calibrate(acc)
       state.active = false
       CM:Print("Scan complete: %d items priced.", n)
       if CM.UI and CM.UI.Refresh then CM.UI:Refresh() end

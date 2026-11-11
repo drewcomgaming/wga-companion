@@ -85,9 +85,50 @@ function DB:ListHouses()
   end
 end
 
+-- After a full scan, find the region house whose listings look most like the AH this
+-- character actually sees. Score per house = average over scanned items of
+-- (quantity overlap + 1 if the lowest prices agree within 10%) / 2.
+function DB:Calibrate(acc)
+  local hs = houses()
+  if not hs or not acc then return end
+  if CM.db.settings.house and CM.db.settings.houseAuto == false then return end
+  local scores = {}
+  for id, h in pairs(hs) do
+    local items, sum, n = h.items or {}, 0, 0
+    for itemID, e in pairs(acc) do
+      n = n + 1
+      local raw = items[itemID]
+      if raw then
+        local mn, _, q = raw:match("^(%d+),(%d+),(%d+)$")
+        mn, q = tonumber(mn), tonumber(q)
+        local qa, qb = e.qty or 0, q or 0
+        local qScore = (qa > 0 and qb > 0) and (math.min(qa, qb) / math.max(qa, qb)) or 0
+        local pScore = (mn and e.min and math.abs(mn - e.min) <= 0.1 * math.max(mn, e.min)) and 1 or 0
+        sum = sum + (qScore + pScore) / 2
+      end
+    end
+    table.insert(scores, { id = id, name = h.name, score = n > 0 and sum / n or 0 })
+  end
+  table.sort(scores, function(a, b) return a.score > b.score end)
+  CM.db.global.calibration = { at = time(), dataAt = self:RegionAge(), scores = scores }
+  local best = scores[1]
+  if not best then return end
+  CM.db.settings.house, CM.db.settings.houseAuto = best.id, true
+  self:ResetHouse()
+  CM:Print("Region prices matched to auction house %d (%s), match %d%%.", best.id, best.name or "?", math.floor(best.score * 100 + 0.5))
+  for i = 2, math.min(3, #scores) do
+    CM:Print("  runner-up %d (%s): %d%%", scores[i].id, scores[i].name or "?", math.floor(scores[i].score * 100 + 0.5))
+  end
+  if best.score < 0.25 then
+    CM:Print("|cffffa040Weak match: your auction house may combine several region houses. Region prices are a rough guide here.|r")
+  end
+end
+
 function DB:SetHouse(id)
   id = tonumber(id)
+  if id == 0 then CM.db.settings.house, CM.db.settings.houseAuto = nil, nil; self:ResetHouse(); CM:Print("Back to automatic house matching."); return end
   if not id or not (houses() and houses()[id]) then CM:Print("Unknown house id. /wga house lists them."); return end
+  CM.db.settings.houseAuto = false
   CM.db.settings.house = id
   self:ResetHouse()
   CM:Print("Using auction house %d for region prices.", id)

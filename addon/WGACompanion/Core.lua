@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.3.0"
+CM.version = "0.3.1"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -231,7 +231,7 @@ SlashCmdList.WGACOMPANION = function(input)
     CM:Print("  /wga  - open the window")
     CM:Print("  /wga scan  - scan the auction house (AH window must be open)")
     CM:Print("  /wga price <item name or link>  - show stored prices")
-    CM:Print("  /wga house [id]  - list or pick the auction house used for region prices")
+    CM:Print("  /wga house [id]  - list or pick the region auction house (0 = automatic)")
     CM:Print("  /wga bags  - what to vendor vs. auction in your bags")
     CM:Print("  /wga watch|unwatch <npc name>  - custom rare/NPC alerts")
     CM:Print("  /wga rares | tooltip | junk  - toggle features")

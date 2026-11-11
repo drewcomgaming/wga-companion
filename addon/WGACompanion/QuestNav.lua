@@ -201,12 +201,21 @@ end
 
 -- Where to go for a quest: m, x, y (0-1), sourceLabel
 function N:Location(id)
-  local pm = C_Map.GetBestMapForUnit("player")
+  local pm, px, py = here()
+  local QD = CM.QData
   if readyForTurnIn(id) then
+    if QD:Has() then
+      local m, x, y, who = QD:Nearest(QD:Finishers(id), pm, px, py)
+      if m then return m, x, y, "quest database", who end
+    end
     local q = CM.QuestDB and CM.QuestDB:Get(id)
     if q and q.t then return q.t[1], q.t[2] / 100, q.t[3] / 100, "turn in" end
   else
     local idx = nextObjective(id)
+    if QD:Has() and idx then
+      local m, x, y, who = QD:Nearest(QD:ObjectiveEntities(id, idx), pm, px, py)
+      if m then return m, x, y, "quest database", who end
+    end
     local s = nearestSpot(id, idx) or nearestSpot(id)
     if s then return s[1], s[2], s[3], "learned spot" end
   end
@@ -254,10 +263,10 @@ function N:UpdateArrow()
   if CM.db.settings.questArrow == false then CM.Arrow:SetAuto(nil) return end
   local id = self:Pick()
   if not id then CM.Arrow:SetAuto(nil) return end
-  local m, x, y = self:Location(id)
+  local m, x, y, _, who = self:Location(id)
   local title = questTitle(id)
   if readyForTurnIn(id) then
-    title = title .. "\n|cff40ff40Turn in|r"
+    title = title .. "\n|cff40ff40Turn in" .. (who and (" to " .. who) or "") .. "|r"
   else
     local _, text = nextObjective(id)
     if text then title = title .. "\n" .. text end
@@ -293,10 +302,15 @@ local function newPin(canvas)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:AddLine(self.title or "")
     if self.text then GameTooltip:AddLine(self.text, 1, 1, 1, true) end
-    GameTooltip:AddLine("Learned by WGA Companion", 0.5, 0.5, 0.5)
+    GameTooltip:AddLine("Click to point the arrow here", 0.5, 0.5, 0.5)
     GameTooltip:Show()
   end)
   p:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  p:SetScript("OnMouseUp", function(self, button)
+    if button == "LeftButton" and self.m and CM.Arrow then
+      CM.Arrow:Point(self.m, self.x, self.y, (self.title or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""), 600)
+    end
+  end)
   table.insert(pins, p)
   return p
 end
@@ -312,6 +326,13 @@ local function onMap(sm, x, y, mapID)
   return pos.x, pos.y
 end
 
+local ICON = {
+  obj = "Interface\\COMMON\\Indicator-Yellow",
+  learned = "Interface\\COMMON\\Indicator-Green",
+  avail = "Interface\\GossipFrame\\AvailableQuestIcon",
+  turnin = "Interface\\GossipFrame\\ActiveQuestIcon",
+}
+
 function N:DrawMap()
   for _, p in ipairs(pins) do p:Hide() end
   local wm = WorldMapFrame
@@ -320,28 +341,61 @@ function N:DrawMap()
   local canvas = wm.GetCanvas and wm:GetCanvas()
   if not mapID or not canvas then return end
   local w, h = canvas:GetSize()
-  local size = math.max(10, w * 0.012)
+  local dot, icon = math.max(8, w * 0.009), math.max(14, w * 0.016)
   local n = 0
-  for questID, objs in pairs(spots()) do
-    if QL.IsOnQuest(questID) and not readyForTurnIn(questID) then
-      local qo = QL.GetQuestObjectives(questID) or {}
-      for idx, list in pairs(objs) do
-        local o = qo[idx]
-        if o and not o.finished then
-          for _, s in ipairs(list) do
-            local x, y = onMap(s[1], s[2], s[3], mapID)
-            if x and x >= 0 and x <= 1 and y >= 0 and y <= 1 and n < MAX_PINS then
-              n = n + 1
-              local p = pins[n] or newPin(canvas)
-              p:SetParent(canvas)
-              p:SetSize(size, size)
-              p:SetFrameLevel(canvas:GetFrameLevel() + 2000)
-              p:ClearAllPoints()
-              p:SetPoint("CENTER", canvas, "TOPLEFT", x * w, -y * h)
-              p.title, p.text = questTitle(questID), o.text
-              p:Show()
+  local function pin(x, y, kind, title, text, size)
+    if n >= MAX_PINS or not x or x < 0 or x > 1 or y < 0 or y > 1 then return end
+    n = n + 1
+    local p = pins[n] or newPin(canvas)
+    p:SetParent(canvas)
+    p:SetSize(size, size)
+    p:SetFrameLevel(canvas:GetFrameLevel() + ((kind == "obj" or kind == "learned") and 2000 or 2100))
+    p:ClearAllPoints()
+    p:SetPoint("CENTER", canvas, "TOPLEFT", x * w, -y * h)
+    p.tex:SetTexture(ICON[kind])
+    p.title, p.text, p.m, p.x, p.y = title, text, mapID, x, y
+    p:Show()
+  end
+  local QD = CM.QData
+  -- quests in the log: objectives still open, or where to turn in
+  for i = 1, QL.GetNumQuestLogEntries() do
+    local info = QL.GetInfo(i)
+    local id = info and not info.isHeader and info.questID
+    if id then
+      if readyForTurnIn(id) then
+        for _, e in ipairs(QD:Has() and QD:Finishers(id) or {}) do
+          local sp = QD:Spawns(e[1], e[2])
+          local list = sp and sp[mapID]
+          for k = 1, list and #list or 0, 2 do pin(list[k], list[k + 1], "turnin", questTitle(id), "Turn in: " .. (QD:Name(e[1], e[2]) or "?"), icon) end
+        end
+      else
+        for idx, o in ipairs(QL.GetQuestObjectives(id) or {}) do
+          if not o.finished then
+            for _, e in ipairs(QD:Has() and QD:ObjectiveEntities(id, idx) or {}) do
+              local sp = QD:Spawns(e[1], e[2])
+              local list = sp and sp[mapID]
+              for k = 1, list and #list or 0, 2 do
+                pin(list[k], list[k + 1], "obj", questTitle(id), (QD:Name(e[1], e[2]) or "") .. "\n" .. (o.text or ""), dot)
+              end
+            end
+            for _, s in ipairs((spots()[id] or {})[idx] or {}) do
+              local x, y = onMap(s[1], s[2], s[3], mapID)
+              pin(x, y, "learned", questTitle(id), (o.text or "") .. "\n|cff808080Learned spot|r", dot)
             end
           end
+        end
+      end
+    end
+  end
+  -- quests you can pick up
+  if QD:Has() and CM.db.settings.questAvailable ~= false then
+    for _, id in ipairs(QD:Available()) do
+      for _, e in ipairs(QD:Starters(id)) do
+        local sp = QD:Spawns(e[1], e[2])
+        local list = sp and sp[mapID]
+        for k = 1, list and #list or 0, 2 do
+          pin(list[k], list[k + 1], "avail", string.format("|cffffd100%s|r (%d)", QD:Title(id) or "?", QD:Level(id) or 0),
+            "Quest giver: " .. (QD:Name(e[1], e[2]) or "?"), icon)
         end
       end
     end
@@ -400,6 +454,10 @@ function N:Command(arg)
     s.questPins = s.questPins == false
     CM:Print("Quest map dots %s.", s.questPins and "on" or "off")
     self:DrawMap()
+  elseif arg == "available" or arg == "avail" then
+    s.questAvailable = s.questAvailable == false
+    CM:Print("Available quests on the map %s.", s.questAvailable and "on" or "off")
+    self:DrawMap()
   elseif arg == "marks" then
     s.questPlates = s.questPlates == false
     CM:Print("Quest mob marks %s.", s.questPlates and "on" or "off")
@@ -416,6 +474,6 @@ function N:Command(arg)
     for _, list in pairs(spots()[id] or {}) do n = n + #list end
     CM:Print("  Game quest-map entries on this map: %d. Learned spots for this quest: %d.", onmap, n)
   else
-    CM:Print("/wga quest [arrow | pins | marks | why]")
+    CM:Print("/wga quest [arrow | pins | available | marks | why]")
   end
 end

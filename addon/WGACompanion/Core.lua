@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.4.0"
+CM.version = "0.5.0"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -21,7 +21,8 @@ local defaults = {
     flipMinProfit = 5000, -- 50s minimum profit for a vendor flip to be listed
     watchList = {},       -- [lower name] = true, extra NPC names to alert on
     questArrow = true,    -- arrow points at your tracked/closest quest when no guide is loaded
-    questPins = true,     -- learned quest spots on the world map
+    questPins = true,     -- quest objective and turn-in spots on the world map
+    questAvailable = true, -- "!" on the world map for quests you can pick up
     questPlates = true,   -- "!" over mobs you still need
   },
 }
@@ -243,7 +244,7 @@ SlashCmdList.WGACOMPANION = function(input)
     CM:Print("  /wga rares | tooltip | junk  - toggle features")
     CM:Print("  /wga guide [name]  - show/hide the step guide, or load one")
     CM:Print("  /wga guides | reset | arrow  - list guides, restart guide, toggle arrow")
-    CM:Print("  /wga quest [arrow|pins|marks|why]  - quest arrow, map dots and mob marks")
+    CM:Print("  /wga quest [arrow|pins|available|marks|why]  - quest arrow, map icons and mob marks")
     CM:Print("  /wga record start|stop|export  - record your own route as a guide")
     CM:Print("  /wga level | dungeon | prof | gold  - reference pages")
   end

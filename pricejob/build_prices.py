@@ -26,6 +26,12 @@ import urllib.request
 REGION = os.environ.get("WGA_REGION", "us").lower()
 API = f"https://{REGION}.api.blizzard.com"
 NAMESPACE = f"dynamic-forever-{REGION}"
+
+# Blizzard's house names only say the faction. Ruleset labels below were confirmed
+# in game (calibration match against a player's own scan). Add more as players confirm them.
+HOUSE_RULESET = {
+    111: "Normal",  # confirmed 2026-11-11: Alliance on Normal, 60% match vs 29% runner-up
+}
 OUT = os.environ.get("WGA_OUT", "dist/WGACompanion_Data")
 INTERFACE = "16001"
 
@@ -158,6 +164,8 @@ def main():
             items.setdefault(iid, []).extend(lst)
         prices = {iid: summarize(lst) for iid, lst in items.items()}
         prices = {k: v for k, v in prices.items() if v}
+        if hid in HOUSE_RULESET:
+            name = f"{HOUSE_RULESET[hid]} - {name}"
         log(f"house {hid} '{name}': {len(prices)} items")
         if prices:
             out_houses.append((hid, name, prices))

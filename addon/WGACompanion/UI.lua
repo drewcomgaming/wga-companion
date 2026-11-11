@@ -470,6 +470,8 @@ function UI:BuildSettings(body)
       { "Hide Blizzard's tracker", "hideBlizzTracker", function() if CM.Tracker then CM.Tracker:ApplyBlizzard() end end },
       { "Guide window", "guideWindow", function(v) if v then CM.GuideWindow:Show() else CM.GuideWindow:Hide() end end },
       { "Guide suggests new quests", "smartAccept", function() CM.GuideWindow:Refresh() end },
+      { "Talking companion", "companion", function() CM.Companion.lastKey = nil; CM.GuideWindow:Refresh() end },
+      { "Companion reads aloud", "companionVoiceOn", function(v) CM.Companion:Paint(); if not v then pcall(C_VoiceChat.StopSpeakingText) end end },
     } },
     { "Economy", {
       { "Prices in tooltips", "tooltip" },

@@ -290,6 +290,7 @@ function GW:Refresh()
 
   local cur = steps[1]
   self.current = cur
+  if CM.Companion then CM.Companion:OnStep(cur) end
   local card = f.card
   local y
   if not cur then

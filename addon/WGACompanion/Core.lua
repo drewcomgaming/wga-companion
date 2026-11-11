@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.12.0"
+CM.version = "0.13.0"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -42,6 +42,9 @@ local defaults = {
     lootSwap = true,         -- offer to swap out the cheapest bag item when bags are full
     shopping = true,         -- shopping list panel at the auction house
     rareHideDone = false,    -- hide rares you have killed and collected everything from
+    companion = true,        -- talking companion above the guide window
+    companionVoiceOn = false, -- read the companion's lines aloud (game text-to-speech)
+    companionName = "Whirl",
   },
 }
 
@@ -245,6 +248,8 @@ SlashCmdList.WGACOMPANION = function(input)
   elseif cmd == "junk" then
     CM.db.settings.autoSellJunk = not CM.db.settings.autoSellJunk
     CM:Print("Auto-sell grey items %s.", CM.db.settings.autoSellJunk and "on" or "off")
+  elseif cmd == "companion" or cmd == "buddy" then
+    CM.Companion:Command(rest or "")
   elseif cmd == "guide" and rest == "smart" then
     WGACompanionCharDB.guide.mode = "smart"
     CM.GuideWindow:Show()
@@ -293,6 +298,7 @@ SlashCmdList.WGACOMPANION = function(input)
     CM:Print("  /wga shop  - show the shopping list panel (at the auction house)")
     CM:Print("  /wga guide [name]  - show/hide the guide window (Smart Guide or a step guide), or load one")
     CM:Print("  /wga guide smart  - switch the guide window to the Smart Guide")
+    CM:Print("  /wga companion [on|off|voice|voices|voice <n>|rate <n>|name <name>|look|say]  - your talking guide buddy")
     CM:Print("  /wga guides | reset | arrow  - list guides, restart guide, toggle arrow")
     CM:Print("  /wga quest [arrow|pins|minimap|available|marks|size|why]  - quest arrow, map icons and mob marks")
     CM:Print("  /wga record start|stop|export  - record your own route as a guide")

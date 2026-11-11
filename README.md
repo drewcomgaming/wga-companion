@@ -45,6 +45,16 @@ The WGA quest tracker replaces Blizzard's objective list while it's on. Quests a
 
 Every module has an on/off switch in Settings.
 
+## Talking companion
+
+A little guide character (Whirl, by default) sits on top of the guide window. Every time the step changes it explains, in plain words, what to do next, who to see, how far away it is and which way to go, and whether the quest is tough for your level. It also cheers on level-ups and turn-ins, and warns you about full bags, a nearly full quest log and rares nearby.
+
+Turn on **Voice** in the speech bubble (or Settings, "Companion reads aloud") and it reads its lines out loud with the game's built-in text-to-speech. The voices are the ones installed on your computer; pick one with `/wga companion voices` and `/wga companion voice <n>`.
+
+Click the portrait to hear the last line again, right-click to change its look. `/wga companion [on|off|voice|rate <n>|name <name>|look|say]`.
+
+Everything is worked out inside the game from your quests and the quest database. WoW addons can't reach the internet, so this is not an online AI: it's a rule-based helper that follows the guide.
+
 ## Guide window and Smart Guide
 
 The guide window is a small window, separate from the hub, that walks you through questing one step at a time. `/wga guide` shows or hides it.

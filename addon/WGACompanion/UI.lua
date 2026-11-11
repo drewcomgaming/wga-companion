@@ -428,38 +428,45 @@ function UI:BuildSettings(body)
   stepper("Map icon size", "pinScale", 0.5, 3, 0.1, 0, -134, function() CM.QuestNav:DrawMap() end)
   stepper("Tracker size", "trackerScale", 0.6, 1.6, 0.05, 340, -134, function() if CM.Tracker then CM.Tracker:ApplyScale() end end)
 
-  -- Feature switches, two columns
+  -- Feature switches: every module can be turned off here
   local cols = {
     { "Quest helper", {
       { "Quest arrow", "questArrow", function() CM.QuestNav:UpdateArrow() end },
-      { "Quest icons on the world map", "questPins", function() CM.QuestNav:DrawMap() end },
-      { "Quest icons on the minimap", "questMinimap", function() CM.QuestNav:CollectMinimap() end },
-      { "Show quests you can pick up", "questAvailable", function() CM.QuestNav:DrawMap(); CM.QuestNav:CollectMinimap() end },
+      { "Quest icons on world map", "questPins", function() CM.QuestNav:DrawMap() end },
+      { "Quest icons on minimap", "questMinimap", function() CM.QuestNav:CollectMinimap() end },
+      { "Quests you can pick up", "questAvailable", function() CM.QuestNav:DrawMap(); CM.QuestNav:CollectMinimap() end },
       { "Mark mobs you still need", "questPlates" },
       { "WGA quest tracker", "tracker", function() if CM.Tracker then CM.Tracker:Update() end end },
-      { "Hide Blizzard's quest tracker", "hideBlizzTracker", function() if CM.Tracker then CM.Tracker:ApplyBlizzard() end end },
+      { "Hide Blizzard's tracker", "hideBlizzTracker", function() if CM.Tracker then CM.Tracker:ApplyBlizzard() end end },
     } },
-    { "Economy & alerts", {
-      { "Prices in item tooltips", "tooltip" },
+    { "Economy", {
+      { "Prices in tooltips", "tooltip" },
       { "Auto-sell grey items", "autoSellJunk" },
-      { "Rare and treasure alerts", "rareAlerts" },
-      { "Sound on rare alert", "rareSound" },
+      { "Bags-full loot swap", "lootSwap" },
+      { "AH shopping lists", "shopping", function(v) if CM.Shopping.frame then CM.Shopping.frame:SetShown(v) end end },
       { "Minimap button", "minimapButton", function(v) CM.MinimapButton:SetShown(v) end },
+    } },
+    { "Rares & treasures", {
+      { "Rare alerts", "rareAlerts" },
+      { "Alert card with Target", "rareButton", function(v) if not v and CM.RareButton then CM.RareButton:Hide() end end },
+      { "Treasure alerts", "treasureAlerts" },
+      { "Alert sound", "rareSound" },
+      { "Arrow to rares", "rareArrow" },
     } },
   }
   for ci, col in ipairs(cols) do
-    local x = (ci - 1) * 340
+    local x = (ci - 1) * 232
     heading(col[1], x, -172)
     for ri, row in ipairs(col[2]) do
       local get, set = setting(row[2], row[3])
       local tg = T:Toggle(page, row[1], get, set)
       tg:SetPoint("TOPLEFT", x, -196 - (ri - 1) * 28)
-      tg:SetWidth(320)
+      tg:SetWidth(224)
     end
   end
   local foot = T:Text(page, 11, "muted")
   foot:SetPoint("BOTTOMLEFT", 0, 0)
-  foot:SetText("Tip: right-click the minimap button for quick toggles. Quest data from QuestieDB (GPL-3.0).")
+  foot:SetText("Tip: right-click the minimap button for quick toggles. /wga keep <item> protects an item. Quest data from QuestieDB (GPL-3.0).")
   return page
 end
 

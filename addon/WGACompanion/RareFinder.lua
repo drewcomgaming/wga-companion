@@ -14,7 +14,8 @@ local function position()
   return "?"
 end
 
-local function alert(key, name, tag, where, extra, mapID, x, y)
+local function alert(key, name, tag, where, extra, mapID, x, y, level)
+  if CM.db.settings.rareIgnore and CM.db.settings.rareIgnore[name:lower()] then return end
   local now = GetTime()
   if seen[key] and now - seen[key] < COOLDOWN then return end
   seen[key] = now
@@ -28,6 +29,10 @@ local function alert(key, name, tag, where, extra, mapID, x, y)
   if FlashClientIcon then FlashClientIcon() end
 
   if mapID and x and CM.Arrow and CM.db.settings.rareArrow ~= false then CM.Arrow:Point(mapID, x, y, name, 90) end
+  if CM.RareButton then
+    CM.RareButton:Remember(key, name)
+    CM.RareButton:Show({ name = name, tag = tag, where = where, npcID = CM.RareButton.NpcID(key), mapID = mapID, x = x, y = y, level = level })
+  end
   table.insert(R.log, 1, { name = name, tag = tag, where = where, at = date("%H:%M") })
   while #R.log > 30 do table.remove(R.log) end
 end
@@ -44,7 +49,8 @@ local function check(unit)
   if not (class == "rare" or class == "rareelite" or known or watched) then return end
   local level = S(UnitLevel(unit))
   local tag = class == "rareelite" and "Rare Elite" or (class == "rare" and "Rare" or "Watched")
-  alert(guid, name, tag, GetZoneText() .. " " .. position(), string.format(" (lvl %s)", (not level or level == -1) and "??" or level))
+  local lvl = (not level or level == -1) and "??" or level
+  alert(guid, name, tag, GetZoneText() .. " " .. position(), string.format(" (lvl %s)", lvl), nil, nil, nil, lvl)
 end
 
 -- Vignettes: the modern client marks rares and treasures on the minimap.
@@ -77,7 +83,7 @@ CM:On("PLAYER_TARGET_CHANGED", function() check("target") end)
 
 function R:Lines()
   local lines = { "|cffffd100Rare & unique finder|r", "",
-    "Alerts (sound + on-screen warning + arrow) when a rare, treasure or watched NPC appears on",
+    "Alerts (card with model, loot and a Target button, sound, arrow) when a rare, treasure or watched NPC appears on",
     "your minimap, a nameplate, under your mouse or as your target.",
     "Add your own: /wga watch <npc name>.   Toggle: /wga rares (currently " ..
       (CM.db.settings.rareAlerts and "|cff40ff40on|r" or "|cffff4040off|r") .. ")", "",
@@ -86,6 +92,15 @@ function R:Lines()
   for _, e in ipairs(R.log) do
     table.insert(lines, string.format("[%s] |cffff8000%s|r (%s) - %s", e.at, e.name, e.tag, e.where))
   end
+  local ign = {}
+  for n in pairs(CM.db.settings.rareIgnore or {}) do table.insert(ign, n) end
+  table.sort(ign)
+  table.insert(lines, "")
+  table.insert(lines, "|cffffd100Ignored|r (shift + right-click an alert card to add; /wga rares unignore <name>): " ..
+    (#ign > 0 and table.concat(ign, ", ") or "|cff808080none|r"))
+  local learned = 0
+  for _ in pairs(CM.db.global.rareLoot or {}) do learned = learned + 1 end
+  table.insert(lines, string.format("Loot learned for %d rare(s). It shows on the alert card.", learned))
   local watch = {}
   for n in pairs(CM.db.settings.watchList) do table.insert(watch, n) end
   table.sort(watch)

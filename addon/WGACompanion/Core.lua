@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.7.0"
+CM.version = "0.8.0"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -11,6 +11,9 @@ local defaults = {
     vendorBuy = {},      -- [itemID] = copper per unit, learned at merchants
     itemNames = {},      -- [itemID] = name, for market search
     spots = {},          -- [questID][objective] = learned quest objective spots
+    rareLoot = {},       -- [rare name][itemID] = times seen dropping
+    keep = {},           -- [itemID] = true, never sold or dropped
+    shopping = { cur = 1, lists = { { name = "Shopping", items = {} } } },
   },
   realms = {},           -- [realm-faction] = { prices = {}, lastScan = 0, recipes = {} }
   settings = {
@@ -34,6 +37,10 @@ local defaults = {
     trackerAlpha = 0.85,
     trackerCollapsed = {},   -- [zone] = true
     trackerFolded = {},      -- [questID] = true
+    rareIgnore = {},         -- [lower name] = true, never alert
+    rareButton = true,       -- alert card with model, loot and Target button
+    lootSwap = true,         -- offer to swap out the cheapest bag item when bags are full
+    shopping = true,         -- shopping list panel at the auction house
   },
 }
 
@@ -220,6 +227,14 @@ SlashCmdList.WGACOMPANION = function(input)
   elseif cmd == "unwatch" and rest ~= "" then
     CM.db.settings.watchList[rest:lower()] = nil
     CM:Print("Stopped watching '%s'.", rest)
+  elseif cmd == "rares" and rest:match("^unignore ") then
+    CM.db.settings.rareIgnore[rest:match("^unignore%s+(.+)$"):lower()] = nil
+    CM:Print("Alerts back on for %s.", rest:match("^unignore%s+(.+)$"))
+  elseif cmd == "rares" and rest:match("^ignore ") then
+    CM.db.settings.rareIgnore[rest:match("^ignore%s+(.+)$"):lower()] = true
+    CM:Print("Ignoring %s.", rest:match("^ignore%s+(.+)$"))
+  elseif cmd == "rares" and rest == "test" then
+    CM.RareButton:Test()
   elseif cmd == "rares" then
     CM.db.settings.rareAlerts = not CM.db.settings.rareAlerts
     CM:Print("Rare alerts %s.", CM.db.settings.rareAlerts and "on" or "off")
@@ -237,6 +252,10 @@ SlashCmdList.WGACOMPANION = function(input)
     CM.Guides:Reset()
   elseif cmd == "minimap" or cmd == "button" then
     CM.MinimapButton:SetShown(not (CM.db.settings.minimapButton ~= false))
+  elseif cmd == "keep" then
+    CM.LootSwap:ToggleKeep(rest)
+  elseif cmd == "shop" or cmd == "shopping" then
+    CM.Shopping:Toggle()
   elseif cmd == "theme" then
     if rest ~= "" then CM.Theme:Set(rest:lower()) else CM.Theme:Cycle() end
   elseif cmd == "tracker" then
@@ -265,6 +284,9 @@ SlashCmdList.WGACOMPANION = function(input)
     CM:Print("  /wga bags  - what to vendor vs. auction in your bags")
     CM:Print("  /wga watch|unwatch <npc name>  - custom rare/NPC alerts")
     CM:Print("  /wga rares | tooltip | junk  - toggle features")
+    CM:Print("  /wga rares test | ignore <name> | unignore <name>  - rare alert card and filters")
+    CM:Print("  /wga keep [item link]  - toggle an item on your keep list, or list it")
+    CM:Print("  /wga shop  - show the shopping list panel (at the auction house)")
     CM:Print("  /wga guide [name]  - show/hide the step guide, or load one")
     CM:Print("  /wga guides | reset | arrow  - list guides, restart guide, toggle arrow")
     CM:Print("  /wga quest [arrow|pins|minimap|available|marks|size|why]  - quest arrow, map icons and mob marks")

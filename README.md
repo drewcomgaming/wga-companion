@@ -26,6 +26,25 @@ The WGA quest tracker replaces Blizzard's objective list while it's on. Quests a
 
 `/wga tracker` shows or hides it.
 
+## Rares, loot swap and shopping lists
+
+**Rare alert card.** When a rare, rare elite or treasure shows up, a card appears with its 3D model, where it is, and the loot WGA has seen it drop.
+- The **Target** button targets the rare. It only works out of combat; that's a game rule.
+- Click the card to point the arrow at the rare. Right-click dismisses it.
+- Shift + right-click ignores that rare for good. `/wga rares unignore <name>` undoes it.
+- `/wga rares test` shows a sample card.
+
+**Keep list.** `/wga keep <shift-click item>` adds an item to your keep list or takes it off. Items your open quests need are kept automatically. Kept items are never auto-sold or offered for a swap.
+
+**Bags-full loot swap.** When your bags are full and better loot is left behind, WGA offers to drop your cheapest bag item and loot it. "Cheapest" uses the AH price after the cut or the vendor price, whichever is higher. Only grey, white and green items are ever offered, and only after you click Swap.
+
+**Shopping lists.** A panel opens beside the auction house. Type `Linen Cloth/20`, or shift-click an item into the box, to add it.
+- Click an item to search for it. Right-click removes it.
+- **Buy** gets the cheapest units of stackable goods, and you confirm the price first.
+- **Search next** steps through the list.
+
+Every module has an on/off switch in Settings.
+
 ## Quest navigation
 
 With no guide loaded, the arrow points at your tracked quest (click one in the objective tracker), or the closest quest in your log. Left-click the arrow to cycle quests.

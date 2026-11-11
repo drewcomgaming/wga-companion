@@ -15,7 +15,7 @@ local LT = Enum and Enum.TooltipDataLineType
 
 local MAX_SPOTS = 40     -- per objective
 local NEAR = 0.012       -- spots closer than this (map fraction) are merged
-local MAX_PINS = 400
+local MAX_PINS = 700
 
 local function S(v) return CM:Safe(v) end
 
@@ -355,6 +355,38 @@ local function styleIcon(p, kind, size)
   end
 end
 
+-- Where zone map `sm` sits inside a bigger map (continent or world): minX, maxX, minY, maxY
+local rects = {}
+local function rectOn(sm, mapID)
+  local key = sm * 100000 + mapID
+  local r = rects[key]
+  if r == nil then
+    r = false
+    if C_Map.GetMapRectOnMap then
+      local ok, x1, x2, y1, y2 = pcall(C_Map.GetMapRectOnMap, sm, mapID)
+      if ok and x1 and x2 and y1 and y2 and x2 > x1 and y2 > y1 then r = { x1, x2, y1, y2 } end
+    end
+    rects[key] = r
+  end
+  return r or nil
+end
+
+-- Calls fn(x, y) for every spawn that shows on mapID: spawns on that map, or on zones inside it.
+local function eachSpawn(sp, mapID, fn)
+  if not sp then return end
+  local list = sp[mapID]
+  if list then
+    for k = 1, #list, 2 do fn(list[k], list[k + 1]) end
+    return
+  end
+  for sm, l in pairs(sp) do
+    local r = rectOn(sm, mapID)
+    if r then
+      for k = 1, #l, 2 do fn(r[1] + l[k] * (r[2] - r[1]), r[3] + l[k + 1] * (r[4] - r[3])) end
+    end
+  end
+end
+
 -- Everything worth showing on one map: emit(x, y, kind, title, text), x/y as 0-1 fractions.
 function N:Collect(mapID, emit)
   local QD = CM.QData
@@ -366,18 +398,16 @@ function N:Collect(mapID, emit)
       if readyForTurnIn(id) then
         for _, e in ipairs(QD:Has() and QD:Finishers(id) or {}) do
           local sp = QD:Spawns(e[1], e[2])
-          local list = sp and sp[mapID]
-          for k = 1, list and #list or 0, 2 do emit(list[k], list[k + 1], "turnin", questTitle(id), "Turn in: " .. (QD:Name(e[1], e[2]) or "?")) end
+          eachSpawn(sp, mapID, function(x, y) emit(x, y, "turnin", questTitle(id), "Turn in: " .. (QD:Name(e[1], e[2]) or "?")) end)
         end
       else
         for idx, o in ipairs(QL.GetQuestObjectives(id) or {}) do
           if not o.finished then
             for _, e in ipairs(QD:Has() and QD:ObjectiveEntities(id, idx) or {}) do
               local sp = QD:Spawns(e[1], e[2])
-              local list = sp and sp[mapID]
-              for k = 1, list and #list or 0, 2 do
-                emit(list[k], list[k + 1], e[3] or "slay", questTitle(id), (QD:Name(e[1], e[2]) or "") .. "\n" .. (o.text or ""))
-              end
+              eachSpawn(sp, mapID, function(x, y)
+                emit(x, y, e[3] or "slay", questTitle(id), (QD:Name(e[1], e[2]) or "") .. "\n" .. (o.text or ""))
+              end)
             end
             for _, s in ipairs((spots()[id] or {})[idx] or {}) do
               local x, y = onMap(s[1], s[2], s[3], mapID)
@@ -393,11 +423,10 @@ function N:Collect(mapID, emit)
     for _, id in ipairs(QD:Available()) do
       for _, e in ipairs(QD:Starters(id)) do
         local sp = QD:Spawns(e[1], e[2])
-        local list = sp and sp[mapID]
-        for k = 1, list and #list or 0, 2 do
-          emit(list[k], list[k + 1], "avail", string.format("|cffffd100%s|r (%d)", QD:Title(id) or "?", QD:Level(id) or 0),
+        eachSpawn(sp, mapID, function(x, y)
+          emit(x, y, "avail", string.format("|cffffd100%s|r (%d)", QD:Title(id) or "?", QD:Level(id) or 0),
             "Quest giver: " .. (QD:Name(e[1], e[2]) or "?"))
-        end
+        end)
       end
     end
   end
@@ -415,6 +444,9 @@ function N:DrawMap()
   local cs = canvas:GetEffectiveScale()
   local unit = (CM.db.settings.pinScale or 1) * (cs > 0 and UIParent:GetEffectiveScale() / cs or 1)
   self.drawnScale = cs
+  local info = C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
+  local mt = info and info.mapType
+  if mt and Enum and Enum.UIMapType and mt <= (Enum.UIMapType.Continent or 2) then unit = unit * 0.75 end
   local n, seen = 0, {}
   self:Collect(mapID, function(x, y, kind, title, text)
     if n >= MAX_PINS or not x or x < 0 or x > 1 or y < 0 or y > 1 then return end

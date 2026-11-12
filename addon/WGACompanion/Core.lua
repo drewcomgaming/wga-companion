@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.21.2"
+CM.version = "0.21.3"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -263,6 +263,8 @@ SlashCmdList.WGACOMPANION = function(input)
   elseif cmd == "advice" or cmd == "whirl" then
     local sub, arg = (rest or ""):match("^(%S*)%s*(.-)$")
     if not CM.Advisor:Command(sub ~= "" and sub or "advice", arg) then CM.Advisor:Command("advice") end
+  elseif cmd == "debug" and rest == "travel" then
+    CM.SmartGuide:DebugTravel()
   elseif cmd == "debug" and rest == "dungeons" then
     if CM.Journal and CM.Journal.EnsureEJ then CM.Journal.EnsureEJ() end
     local n = EJ_GetNumTiers and EJ_GetNumTiers() or "none"

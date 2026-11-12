@@ -384,6 +384,16 @@ function GW:Refresh()
 
   local cur = steps[1]
   self.current = cur
+  -- travel advice belongs to whichever step is on top (skips and picks change that)
+  if cur and cur.m and not cur.travel and mode == "smart" then
+    local m = C_Map.GetBestMapForUnit("player")
+    local pos = m and C_Map.GetPlayerMapPosition(m, "player")
+    if pos then
+      local px, py = pos:GetXY()
+      local ok, tr = pcall(CM.SmartGuide.Travel, CM.SmartGuide, { m = m, x = px, y = py }, cur)
+      if ok then cur.travel = tr end
+    end
+  end
   if CM.Companion then CM.Companion:OnStep(cur) end
   local card = f.card
   local y

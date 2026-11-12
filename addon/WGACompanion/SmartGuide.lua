@@ -471,7 +471,7 @@ function SG:Route()
 end
 
 -- Travel: flight paths and hearthstone ----------------------------------------------------------
-local HEARTHSTONE = 6948
+local HEARTHSTONE = 6948  -- may be corrected from your bags
 local FLY_SPEED, FLY_PATH, FLY_OVERHEAD = 30, 1.25, 12   -- yards/s, route bend, mount up + land
 local HEARTH_TIME = 10 + 20                               -- cast + loading screen
 local function travelDB()
@@ -641,12 +641,30 @@ function SG:LearnInn()
   end
 end
 
+local function hearthCount()
+  local n = C_Item.GetItemCount and C_Item.GetItemCount(HEARTHSTONE) or 0
+  if n > 0 then return n end
+  -- some clients give the hearthstone another item ID: look for it by name in your bags
+  for bag = 0, (CM.Bags and CM.Bags.Last or 4) do
+    for slot = 1, (C_Container.GetContainerNumSlots(bag) or 0) do
+      local info = C_Container.GetContainerItemInfo(bag, slot)
+      local name = info and info.itemName or (info and info.hyperlink and info.hyperlink:match("%[(.-)%]"))
+      if name == "Hearthstone" then HEARTHSTONE = info.itemID or HEARTHSTONE return 1 end
+    end
+  end
+  return 0
+end
+
 local function hearthReady()
-  if (C_Item.GetItemCount and C_Item.GetItemCount(HEARTHSTONE) or 0) == 0 then return false end
+  if hearthCount() == 0 then return false, "no hearthstone in your bags" end
   local start, duration = 0, 0
   if C_Container and C_Container.GetItemCooldown then start, duration = C_Container.GetItemCooldown(HEARTHSTONE) end
-  return not start or start == 0 or (start + duration - GetTime()) <= 0
+  start, duration = CM:Safe(start) or 0, CM:Safe(duration) or 0
+  local left = start > 0 and (start + duration - GetTime()) or 0
+  if left > 2 then return false, string.format("on cooldown for %s", SG.Mins and SG.Mins(left) or math.floor(left) .. " s") end
+  return true
 end
+SG.HearthReady = hearthReady
 
 local function runSpeed()
   local _, run = GetUnitSpeed and GetUnitSpeed("player")
@@ -835,4 +853,25 @@ function SG:Summary()
   local level = UnitLevel("player") or 1
   local xp, xpMax = UnitXP("player") or 0, UnitXPMax("player") or 1
   return level, xpMax > 0 and xp / xpMax or 0
+end
+
+-- /wga debug travel: why the guide suggests what it does for the current step
+function SG:DebugTravel()
+  local GW = CM.GuideWindow
+  local cur = GW and GW.current
+  local m, x, y = here()
+  if not cur or not cur.m then CM:Print("Travel: no current step with a location.") return end
+  local from, to = { m = m, x = x, y = y }, cur
+  CM:Print("Travel to %s: straight line %s yd.", cur.title or "?", tostring(yards(from, to) and math.floor(yards(from, to)) or "unknown"))
+  CM:Print("Bound to: %s.", tostring(GetBindLocation and GetBindLocation()))
+  local h = self:HearthSpot()
+  CM:Print("Hearth spot: %s", h and h.m and string.format("%s (map %d, %.1f %.1f)%s, %s yd from the step", h.name or "?", h.m, h.x * 100, h.y * 100,
+    h.guess and " from the inn list" or " learned", tostring(yards(h, to) and math.floor(yards(h, to)) or "?")) or "unknown")
+  local ok, why = hearthReady()
+  CM:Print("Hearthstone: %s", ok and "ready" or why)
+  local n = 0
+  for _ in pairs(travelDB().known) do n = n + 1 end
+  CM:Print("Flight points known: %d. Run speed %.1f yd/s.", n, runSpeed())
+  local tr = self:Travel(from, to)
+  CM:Print("Suggestion: %s", tr and (tr.kind .. ": " .. tostring(tr.text)) or "none")
 end

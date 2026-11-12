@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.17.1"
+CM.version = "0.17.2"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -255,6 +255,16 @@ SlashCmdList.WGACOMPANION = function(input)
     CM:Print("Auto-sell grey items %s.", CM.db.settings.autoSellJunk and "on" or "off")
   elseif cmd == "companion" or cmd == "buddy" then
     CM.Companion:Command(rest or "")
+  elseif cmd == "debug" and rest == "dungeons" then
+    local n = EJ_GetNumTiers and EJ_GetNumTiers() or "none"
+    CM:Print("Dungeon journal tiers: %s", tostring(n))
+    if EJ_SelectTier and type(n) == "number" and n > 0 then
+      EJ_SelectTier(n)
+      local id, name, _, _, button = EJ_GetInstanceByIndex(1, false)
+      CM:Print("First dungeon: %s (id %s), art %s", tostring(name), tostring(id), tostring(button))
+    end
+    local list = CM.Journal and CM.Journal.list
+    CM:Print("Dungeons on the page: %d", list and #list or 0)
   elseif cmd == "auto" then
     local st = CM.db.settings
     if rest == "rewards" then

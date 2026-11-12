@@ -52,9 +52,10 @@ end
 
 local function sellJunk()
   if not CM.db.settings.autoSellJunk then return end
-  local total, n, slots = 0, 0, {}
+  local total, n, slots, keptGrey = 0, 0, {}, false
   CM:ForEachBagItem(function(bag, slot, info)
-    if info.quality == 0 and not info.hasNoValue and not info.isLocked then
+    if info.quality == 0 and CM:IsKept(info.itemID) then keptGrey = true end
+    if info.quality == 0 and not info.hasNoValue and not info.isLocked and not CM:IsKept(info.itemID) then
       local sell = CM:SellPrice(info.itemID)
       if sell and sell > 0 then
         total = total + sell * (info.stackCount or 1)
@@ -64,7 +65,7 @@ local function sellJunk()
     end
   end)
   if n == 0 then return end
-  if C_MerchantFrame and C_MerchantFrame.SellAllJunkItems and (not C_MerchantFrame.IsSellAllJunkEnabled or C_MerchantFrame.IsSellAllJunkEnabled()) then
+  if not keptGrey and C_MerchantFrame and C_MerchantFrame.SellAllJunkItems and (not C_MerchantFrame.IsSellAllJunkEnabled or C_MerchantFrame.IsSellAllJunkEnabled()) then
     C_MerchantFrame.SellAllJunkItems()
   else
     for _, s in ipairs(slots) do CM.Bags.Use(s[1], s[2]) end

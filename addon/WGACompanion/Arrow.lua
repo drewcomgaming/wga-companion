@@ -5,7 +5,7 @@ local _, CM = ...
 local A = CM:NewModule("Arrow")
 
 local ARRIVE_YARDS = 10
-local target, temp -- { m, x, y, title }  temp = { ..., expires }
+local target, temp, auto -- { m, x, y, title }  temp = { ..., expires }; auto = quest arrow (lowest priority)
 
 local function worldPos(mapID, x, y)
   local cont, w = C_Map.GetWorldPosFromMapPos(mapID, CreateVector2D(x, y))
@@ -31,6 +31,8 @@ local function axes(mapID)
   return a
 end
 
+A.WorldPos, A.Axes = worldPos, axes
+
 -- Returns distance (yards), clockwise bearing from north (radians), or nil + reason
 function A:Compute(t)
   local pm = C_Map.GetBestMapForUnit("player")
@@ -53,20 +55,32 @@ end
 function A:Build()
   if self.frame then return end
   local f = CreateFrame("Frame", "WGACompanionArrow", UIParent)
-  f:SetSize(56, 56)
+  f:SetSize(72, 72)
   f:SetPoint("TOP", UIParent, "TOP", 0, -140)
   f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
-  f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
   f:SetClampedToScreen(true)
+  f.ring = f:CreateTexture(nil, "BACKGROUND")
+  f.ring:SetAllPoints()
+  f.ring:SetTexture("Interface\\AddOns\\WGACompanion\\Icons\\ring")
   f.tex = f:CreateTexture(nil, "ARTWORK")
-  f.tex:SetAllPoints()
-  f.tex:SetTexture("Interface\\Buttons\\UI-MicroStream-Green") -- points down; rotated below
-  f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  f.title:SetPoint("TOP", f, "BOTTOM", 0, -2)
-  f.title:SetWidth(240)
-  f.dist = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  f.dist:SetPoint("TOP", f.title, "BOTTOM", 0, -1)
-  f:SetScript("OnMouseUp", function(_, button) if button == "RightButton" then A:SetTarget(nil); temp = nil; f:Hide() end end)
+  f.tex:SetSize(50, 50)
+  f.tex:SetPoint("CENTER")
+  f.tex:SetTexture("Interface\\AddOns\\WGACompanion\\Icons\\arrow") -- grey, points up; tinted and rotated below
+  f.dist = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+  f.dist:SetPoint("TOP", f, "BOTTOM", 0, -3)
+  f.dist:SetShadowOffset(1, -1)
+  f.title = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  f.title:SetPoint("TOP", f.dist, "BOTTOM", 0, -3)
+  f.title:SetWidth(260)
+  f.title:SetSpacing(2)
+  f.title:SetShadowOffset(1, -1)
+  f:SetScript("OnDragStart", function(self) self.dragging = true; self:StartMoving() end)
+  f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); C_Timer.After(0, function() self.dragging = false end) end)
+  f:SetScript("OnMouseUp", function(self, button)
+    if self.dragging then return end
+    if button == "RightButton" then A:SetTarget(nil); temp = nil; if not auto then f:Hide() end
+    elseif button == "LeftButton" and A:Active() == auto and CM.QuestNav then CM.QuestNav:Next() end
+  end)
   local elapsed = 0
   f:SetScript("OnUpdate", function(_, e)
     elapsed = elapsed + e
@@ -80,7 +94,7 @@ end
 
 function A:Active()
   if temp and GetTime() > temp.expires then temp = nil end
-  return temp or target
+  return temp or target or auto
 end
 
 function A:Tick()
@@ -94,19 +108,19 @@ function A:Tick()
     return
   end
   f.tex:SetAlpha(1)
-  f.dist:SetText(string.format("%d yd", dist))
+  f.dist:SetText(dist < ARRIVE_YARDS and "|cff40ff40You're here|r" or string.format("%d yd", dist))
   local facing = CM:Safe(GetPlayerFacing())
   if facing then
     local rel = bearing + facing           -- clockwise angle from where you face
-    f.tex:SetRotation(math.pi - rel)        -- texture points down, SetRotation is counter-clockwise
-    -- colour: green ahead, yellow to the side, red behind
-    local off = math.abs(((rel + math.pi) % (2 * math.pi)) - math.pi)
-    f.tex:SetTexture(off < 0.5 and "Interface\\Buttons\\UI-MicroStream-Green"
-      or (off < 1.8 and "Interface\\Buttons\\UI-MicroStream-Yellow" or "Interface\\Buttons\\UI-MicroStream-Red"))
+    f.tex:SetRotation(-rel)                 -- texture points up, SetRotation is counter-clockwise
+    -- colour fades green (ahead) -> yellow (side) -> red (behind)
+    local off = math.abs(((rel + math.pi) % (2 * math.pi)) - math.pi) / math.pi -- 0 ahead, 1 behind
+    if off < 0.5 then f.tex:SetVertexColor(0.2 + off * 1.6, 1, 0.2)
+    else f.tex:SetVertexColor(1, 1 - (off - 0.5) * 1.6, 0.15) end
   end
   if dist < ARRIVE_YARDS then
     if t == temp then temp = nil
-    elseif CM.Guides then CM.Guides:OnArrive() end
+    elseif t == target and CM.Guides then CM.Guides:OnArrive() end
   end
 end
 
@@ -144,4 +158,25 @@ function A:Toggle()
   CM.db.settings.arrow = CM.db.settings.arrow == false
   CM:Print("Arrow %s.", CM.db.settings.arrow and "on" or "off")
   self.frame:SetShown(CM.db.settings.arrow and self:Active() ~= nil)
+end
+
+-- Quest arrow target from QuestNav; shown only when there is no guide or temporary target.
+function A:SetAuto(m, x, y, title)
+  self:Build()
+  if m then
+    if not auto then auto = {} end
+    auto.m, auto.x, auto.y, auto.title = m, x, y, title
+  else
+    auto = nil
+  end
+  if CM.db and CM.db.settings.arrow == false then self.frame:Hide() return end
+  self.frame:SetShown(self:Active() ~= nil)
+end
+
+function A:ResetPosition()
+  self:Build()
+  self.frame:ClearAllPoints()
+  self.frame:SetPoint("TOP", UIParent, "TOP", 0, -140)
+  self.frame:SetShown(self:Active() ~= nil)
+  CM:Print("Arrow moved back to the top of the screen.")
 end

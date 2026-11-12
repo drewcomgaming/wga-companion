@@ -143,6 +143,22 @@ function SG:LockedZone()
   return l and l.id, l and l.name, false
 end
 
+-- Zones the guide may send you to right now. A manual lock is just that zone. Following the path
+-- it's the recommended zone plus the zone you're standing in while that zone still fits your level,
+-- so you can finish what you started before moving on.
+function SG:ZoneAllowed(m, pm)
+  local lock, _, auto = self:LockedZone()
+  if not lock then return true end
+  local z = zoneOf(m)
+  if z == lock then return true end
+  if auto and pm and z and z == zoneOf(pm) then
+    local info = C_Map.GetMapInfo and C_Map.GetMapInfo(z)
+    local _, hi = rangeOf(info and info.name)
+    if hi and (UnitLevel("player") or 1) <= hi then return true end
+  end
+  return false
+end
+
 function SG:FollowPath()
   lockDB().zoneLock = { auto = true }
   local name, lo, hi = self:RecommendedZone()
@@ -297,7 +313,7 @@ function SG:Collect()
       -- already in the log but poor value: keep it, at the end of the route
       if efficient and not ready and QD:Has() then step.later = QD:NotWorthIt(id, myLevel) end
       local lock, lockName = self:LockedZone()
-      if lock and not ready and step.m and zoneOf(step.m) ~= lock then
+      if lock and not ready and step.m and not self:ZoneAllowed(step.m, pm) then
         step.later = step.later or ("outside " .. lockName)
       end
       steps[#steps + 1] = step
@@ -312,9 +328,8 @@ function SG:Collect()
       local m, x, y, who = QD:Nearest(QD:Starters(id), pm, px, py)
       if m and not inLog[id] then
         local d = pm and px and yards({ m = pm, x = px, y = py }, { m = m, x = x, y = y })
-        local lock = self:LockedZone()
         local inRange
-        if lock then inRange = zoneOf(m) == lock else inRange = m == pm or (d and d < NEARBY_YARDS) end
+        if self:LockedZone() then inRange = self:ZoneAllowed(m, pm) else inRange = m == pm or (d and d < NEARBY_YARDS) end
         if inRange then
           local why = efficient and QD:NotWorthIt(id, myLevel)
           local dungeon = QD:IsDungeonQuest(id)
@@ -439,7 +454,12 @@ function SG:Route()
   for _, s in ipairs(route) do s.yards = here and yards(here, s) end
   for _, s in ipairs(rest) do route[#route + 1] = s end
   for _, s in ipairs(later) do route[#route + 1] = s end
-  while #route > LIMITS[self:Style()].steps do table.remove(route) end
+  -- Too long: drop quests to pick up (furthest first), never quests already in your log
+  local i = #route
+  while #route > LIMITS[self:Style()].steps and i >= 1 do
+    if route[i].kind == "accept" then table.remove(route, i) end
+    i = i - 1
+  end
   -- how to get to the first stop: run, fly or hearth
   if route[1] and here and route[1].m then route[1].travel = self:Travel(here, route[1]) end
   return route

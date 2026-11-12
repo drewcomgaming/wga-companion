@@ -97,6 +97,17 @@ The current step shows a 3D model of the NPC or mob, what to do ("Talk to", "Kil
 
 Click the Z button in the guide window header and choose **Follow the levelling path**. Below level 10 the guide keeps you in your race's starting zone (Elwynn Forest, Dun Morogh, Teldrassil, Durotar, Mulgore, Tirisfal Glades and so on). After that it follows your faction's zone order on the continent you pick (Eastern Kingdoms or Kalimdor, click "Path" in the menu to switch), for example Elwynn Forest, Westfall, Redridge Mountains, Duskwood. Once you outlevel a zone the subtitle and Whirl tell you where to move on to, and in path mode the guide switches zones for you. `/wga zone path`, `/wga zone eastern` and `/wga zone kalimdor` do the same from chat.
 
+### Flight paths, city gates and your body
+
+- The Smart Guide adds a stop at any flight master within about 600 yards whose flight path you haven't learned yet. Flight masters come from QuestieDB. Turn this off with "Grab nearby flight paths" in settings.
+- The arrow learns the capital cities' gates as you walk in and out. After that, when you're inside a city and your target is outside (or the other way round), it points you to the nearest gate first.
+- When you die and release, the arrow points to your body.
+- Efficient routes are no longer capped at 14 steps. Quests in your log are never cut from the route.
+
+### Whirl's advice
+
+`/wga advice` (or `/wga companion advice`) gives you a talent plan for your class and level, the stats to look for, dungeons that fit your level, and any upgrades sitting in your bags. `build`, `stats`, `dungeons` and `gear` give one part at a time. Tick "I play in groups" or "I'm a veteran player" in settings to change the advice; `/wga advice style group|solo` and `/wga advice experience new|veteran` do the same. On level up Whirl reminds you about talent milestones and, for new players, trainers and professions. Whirl also watches the mobs you kill. If you keep killing mobs that no quest needs, or you're fighting far from the current step, Whirl tells you where to go instead. The advice is written for WGA Companion in our own words and is based on classic class knowledge, so WoW Forever changes may not be reflected yet.
+
 ## Dungeon journal
 
 The hub's **Dungeons** page shows every dungeon as a card with its art, level range and number of quests. You can search by dungeon or boss name, and the button at top right switches between dungeons and raids. Open a dungeon to see three tabs:

@@ -12,6 +12,7 @@ local A = "Interface\\AddOns\\WGACompanion\\Icons\\"
 local KIND = {
   accept = { icon = "Interface\\GossipFrame\\AvailableQuestIcon", color = "warn", talk = "Talk to" },
   turnin = { icon = "Interface\\GossipFrame\\ActiveQuestIcon", color = "good", talk = "Talk to" },
+  flight = { icon = "Interface\\Icons\\Ability_Mount_Gryphon_01", color = "accent2", talk = "Talk to" },
   kill = { icon = A .. "slay_mono", color = "bad", talk = "Kill" },
   loot = { icon = A .. "loot_mono", color = "accent", talk = "Loot from" },
   use = { icon = A .. "object_mono", color = "accent2", talk = "Use" },

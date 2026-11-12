@@ -86,6 +86,9 @@ function C:Explain(step)
     if text then parts[#parts + 1] = "We're after: " .. text:gsub("%s*%d+/%d+", "") .. "." end
   elseif step.kind == "use" then
     parts[#parts + 1] = string.format("For %s, look for the %s and click it.", title, npc)
+  elseif step.kind == "flight" then
+    parts[#parts + 1] = pick({ "%s has a flight path we don't have yet. Let's grab it, it'll save us loads of walking later.",
+      "Quick stop: let's learn the flight path from %s while we're close." }):format(npc)
   elseif step.kind == "goto" then
     parts[#parts + 1] = string.format("Let's head over: %s.", title)
   else
@@ -403,7 +406,10 @@ function C:Command(rest)
     self:CycleModel()
   elseif cmd == "say" then
     self:Speak(true)
+  elseif CM.Advisor and CM.Advisor:Command(cmd, arg) then
+    return
   else
     CM:Print("/wga companion [on|off] | voice | voices | voice <n> | rate <-10..10> | name <name> | look | say")
+    CM:Print("Advice: /wga companion advice | build | stats | dungeons | gear | style solo|group | experience new|veteran")
   end
 end

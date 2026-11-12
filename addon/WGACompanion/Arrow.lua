@@ -92,14 +92,110 @@ function A:Build()
   self.frame = f
 end
 
+-- Dead and released: the arrow points to your body, whatever else it was doing
+local corpse
+local function corpseTarget()
+  if not (UnitIsGhost and UnitIsGhost("player")) then corpse = nil return nil end
+  if not (C_DeathInfo and C_DeathInfo.GetCorpseMapPosition) then return nil end
+  local m = C_Map.GetBestMapForUnit("player")
+  for _ = 1, 4 do
+    if not m then break end
+    local ok, pos = pcall(C_DeathInfo.GetCorpseMapPosition, m)
+    if ok and pos then
+      local x, y = pos:GetXY()
+      if x and x > 0 then
+        corpse = corpse or {}
+        corpse.m, corpse.x, corpse.y, corpse.title = m, x, y, "Your body"
+        return corpse
+      end
+    end
+    local info = C_Map.GetMapInfo(m)
+    m = info and info.parentMapID
+  end
+  return corpse   -- keep the last known spot (e.g. after you zone while running back)
+end
+
+-- City gates, learned as you walk in and out of the capitals. When you and the target are on
+-- different sides of a city wall, the arrow takes you to the nearest gate first.
+local CITY = { [1453] = true, [1454] = true, [1455] = true, [1456] = true, [1457] = true, [1458] = true }
+A.CITY = CITY
+local function zoneOf(m)
+  local SG = CM.SmartGuide
+  return SG and SG.ZoneOf and SG.ZoneOf(m) or m
+end
+local function gates()
+  CM.db.global.gates = CM.db.global.gates or {}
+  return CM.db.global.gates
+end
+local function dist2(c1, x1, y1, c2, x2, y2)
+  if not c1 or c1 ~= c2 then return nil end
+  return math.sqrt((x1 - x2) ^ 2 + (y1 - y2) ^ 2)
+end
+
+-- Ticker: notice when you walk (not teleport) across a city border and remember where
+local last
+function A:LearnGate()
+  local m = C_Map.GetBestMapForUnit("player")
+  local p = m and C_Map.GetPlayerMapPosition(m, "player")
+  if not p or (UnitOnTaxi and UnitOnTaxi("player")) or (UnitIsDeadOrGhost and UnitIsDeadOrGhost("player")) then last = nil return end
+  local x, y = p:GetXY()
+  local c, wx, wy = worldPos(m, x, y)
+  local z = zoneOf(m)
+  if last and last.z ~= z and (CITY[z] or CITY[last.z]) then
+    local d = dist2(c, wx, wy, last.c, last.wx, last.wy)
+    if d and d < 60 then                      -- walked across, not a hearth or portal
+      local city = CITY[z] and z or last.z
+      local list = gates()[city] or {}
+      gates()[city] = list
+      local dup
+      for _, g in ipairs(list) do
+        local gc, gx, gy = worldPos(g[1], g[2], g[3])
+        local dd = dist2(c, wx, wy, gc, gx, gy)
+        if dd and dd < 50 then dup = true break end
+      end
+      if not dup and #list < 12 then list[#list + 1] = { m, x, y } end
+    end
+  end
+  last = { z = z, c = c, wx = wx, wy = wy }
+end
+
+-- Where the arrow should actually point for target t: t itself, or a city gate on the way
+function A:Via(t)
+  local m = C_Map.GetBestMapForUnit("player")
+  local p = m and C_Map.GetPlayerMapPosition(m, "player")
+  if not p or not t or not t.m then return t end
+  local pz, tz = zoneOf(m), zoneOf(t.m)
+  if pz == tz then return t end
+  local city = (CITY[pz] and pz) or (CITY[tz] and tz)
+  local list = city and gates()[city]
+  if not list or #list == 0 then return t end
+  local x, y = p:GetXY()
+  local pc, px, py = worldPos(m, x, y)
+  local tc, tx, ty = worldPos(t.m, t.x, t.y)
+  if not pc or pc ~= tc then return t end
+  local best, bd
+  for _, g in ipairs(list) do
+    local gc, gx, gy = worldPos(g[1], g[2], g[3])
+    local a, b = dist2(pc, px, py, gc, gx, gy), dist2(gc, gx, gy, tc, tx, ty)
+    if a and b and (not bd or a + b < bd) then best, bd = g, a + b end
+  end
+  if not best then return t end
+  local gc, gx, gy = worldPos(best[1], best[2], best[3])
+  if dist2(pc, px, py, gc, gx, gy) < 15 then return t end   -- at the gate: go on
+  return { m = best[1], x = best[2], y = best[3], title = (t.title or "") .. "\n|cff9d9d9d(via the city gate)|r", via = t }
+end
+
 function A:Active()
+  local c = corpseTarget()
+  if c then return c end
   if temp and GetTime() > temp.expires then temp = nil end
   return temp or target or auto
 end
 
 function A:Tick()
-  local f, t = self.frame, self:Active()
-  if not t then f:Hide(); return end
+  local f, goal = self.frame, self:Active()
+  if not goal then f:Hide(); return end
+  local t = goal == corpse and goal or self:Via(goal)
   f.title:SetText(t.title or "")
   local dist, bearing = self:Compute(t)
   if not dist then
@@ -179,4 +275,19 @@ function A:ResetPosition()
   self.frame:SetPoint("TOP", UIParent, "TOP", 0, -140)
   self.frame:SetShown(self:Active() ~= nil)
   CM:Print("Arrow moved back to the top of the screen.")
+end
+
+-- Death: show the arrow to your body as soon as you release, and go back to normal when alive
+local function deathUpdate()
+  A:Build()
+  if CM.db and CM.db.settings.arrow == false then return end
+  A.frame:SetShown(A:Active() ~= nil)
+end
+for _, e in ipairs({ "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST", "CORPSE_POSITION_UPDATE" }) do
+  CM:On(e, function() C_Timer.After(0.5, deathUpdate) end)
+end
+
+function A:OnLogin()
+  C_Timer.NewTicker(1, function() A:LearnGate() end)
+  if UnitIsGhost and UnitIsGhost("player") then C_Timer.After(2, deathUpdate) end
 end

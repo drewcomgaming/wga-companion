@@ -40,6 +40,7 @@ local TRAVEL_ICON = {
   fly = "Interface\\Icons\\Ability_Mount_Gryphon_01",
   hearth = "Interface\\Icons\\INV_Misc_Rune_01",
   hearthfly = "Interface\\Icons\\INV_Misc_Rune_01",
+  portal = "Interface\\Icons\\Spell_Arcane_PortalStormWind",
 }
 
 local function where(s)
@@ -405,7 +406,9 @@ function GW:Refresh()
     if cur.kind == "turnin" then lines[#lines + 1] = CHECK .. "  All objectives done" end
     card.objs:SetText(T:Recolor(table.concat(lines, "\n")))
     if CM.Arrow then
-      if cur.m and cur.x then CM.Arrow:SetTarget(cur.m, cur.x, cur.y, (cur.verb and (cur.verb .. ": ") or "") .. (cur.title or "")) else CM.Arrow:SetTarget(nil) end
+      local via = cur.travel and cur.travel.via
+      if via then CM.Arrow:SetTarget(via.m, via.x, via.y, "Travel: " .. (cur.travel.text or ""))
+      elseif cur.m and cur.x then CM.Arrow:SetTarget(cur.m, cur.x, cur.y, (cur.verb and (cur.verb .. ": ") or "") .. (cur.title or "")) else CM.Arrow:SetTarget(nil) end
     end
   end
   local objH = (cur and (#(cur.objectives or {}) > 0 or cur.kind == "turnin" or (cur.travel and cur.travel.text)))

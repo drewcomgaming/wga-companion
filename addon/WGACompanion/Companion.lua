@@ -96,6 +96,7 @@ function C:Explain(step)
   if tr and tr.kind ~= "run" and tr.text then
     parts[#parts + 1] = (tr.kind == "fly" and "Quickest is to take the flight path: "
       or tr.kind == "hearth" and "Your hearthstone is ready and it's faster: "
+      or tr.kind == "portal" and "Here's how we get there: "
       or "Best way there: ") .. tr.text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "") .. "."
   end
   if step.phase == "town" and step.kind == "accept" then

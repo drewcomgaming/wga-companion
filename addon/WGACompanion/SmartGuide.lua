@@ -287,7 +287,7 @@ end)
 -- Hearthstone: remember where it takes you
 local hearthing = false
 CM:On("UNIT_SPELLCAST_SUCCEEDED", function(_, unit, _, spellID)
-  if unit == "player" and spellID == 8690 then hearthing = true end
+  if unit == "player" and spellID == 8690 then hearthing = true; SG.lastHearth = GetTime() end
 end)
 local function recordHearth()
   local m, x, y = here()
@@ -361,9 +361,95 @@ end
 SG.Mins = mins
 
 -- Best way to get from `from` to `to`: { kind = "run"|"fly"|"hearth"|"hearthfly", secs, cost, text, saves }
+-- Getting to another continent ----------------------------------------------------------------
+-- Known routes by destination zone (from players; Forever-specific).
+local ROUTES = {
+  ["Zephras Isle"] = {
+    Alliance = { "Take the portal to Dalaran in the Wizard's Sanctum (Mage Quarter, Stormwind)",
+      "in Dalaran, board the airship to Valanaar on Zephras Isle (north-west side, near Khadgar's Tower)" },
+  },
+}
+SG.ROUTES = ROUTES
+
+local function continentOf(m, x, y)
+  local c = world(m, x or 0.5, y or 0.5)
+  return c
+end
+
+local function zoneNames(m)
+  local names, seen = {}, 0
+  while m and seen < 6 do
+    local info = C_Map.GetMapInfo and C_Map.GetMapInfo(m)
+    if not info then break end
+    names[#names + 1] = info.name
+    m = info.parentMapID; seen = seen + 1
+  end
+  return names
+end
+
+-- Learn portals, boats and zeppelins: when a loading screen moves you to another continent
+-- (and you didn't hearth or fly), the spot you left from is a way there.
+local lastSpot
+C_Timer.NewTicker(3, function()
+  if UnitOnTaxi and UnitOnTaxi("player") then return end
+  local m, x, y = here()
+  if m and x then lastSpot = { m = m, x = x, y = y, c = continentOf(m, x, y) } end
+end)
+local function learnLink()
+  if not lastSpot or (SG.lastHearth and GetTime() - SG.lastHearth < 90) then return end
+  local m, x, y = here()
+  local c = m and x and continentOf(m, x, y)
+  if c and lastSpot.c and c ~= lastSpot.c then
+    local t = travelDB()
+    t.links = t.links or {}
+    local info = C_Map.GetMapInfo and C_Map.GetMapInfo(m)
+    t.links[#t.links + 1] = { from = lastSpot, toC = c, toName = info and info.name }
+    while #t.links > 30 do table.remove(t.links, 1) end
+  end
+end
+CM:On("PLAYER_ENTERING_WORLD", function() C_Timer.After(3, learnLink) end)
+
+function SG:CrossContinent(from, to)
+  local toC = continentOf(to.m, to.x, to.y)
+  local fromC = continentOf(from.m, from.x, from.y)
+  -- a way you've used before
+  local best, bd
+  for _, l in ipairs(travelDB().links or {}) do
+    if l.toC == toC and l.from.c == fromC then
+      local d = yards(from, l.from)
+      if d and (not bd or d < bd) then best, bd = l, d end
+    end
+  end
+  if best then
+    local info = C_Map.GetMapInfo and C_Map.GetMapInfo(best.from.m)
+    return { kind = "portal", via = best.from, cost = 0,
+      text = string.format("Take the way you used before to %s (%s %.0f, %.0f)", best.toName or "there",
+        info and info.name or "", best.from.x * 100, best.from.y * 100) }
+  end
+  -- a route we know about
+  local faction = UnitFactionGroup and UnitFactionGroup("player") or "Alliance"
+  for _, name in ipairs(zoneNames(to.m)) do
+    local r = ROUTES[name]
+    if r and r[faction] then
+      local legs = r[faction]
+      return { kind = "portal", cost = 0, text = legs[1] .. ", then " .. table.concat(legs, ", then ", 2) }
+    end
+  end
+  return { kind = "portal", cost = 0, text = "It's on another continent: take a boat, zeppelin or portal" }
+end
+
 function SG:Travel(from, to)
   self:CheckBind()
   local direct = yards(from, to)
+  if not direct and to.m and from.m then
+    -- other continent: hearth if your inn is over there, otherwise the known way across
+    local h = travelDB().hearth
+    if h and h.m and hearthReady() and yards(h, to) then
+      return { kind = "hearth", cost = 0, secs = HEARTH_TIME,
+        text = string.format("Hearth to %s, it's on that side of the world", h.name or "your inn") }
+    end
+    return self:CrossContinent(from, to)
+  end
   local money = GetMoney and GetMoney() or 0
   local options = {}
   local walk

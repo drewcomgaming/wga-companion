@@ -2,7 +2,7 @@
 local _, CM = ...
 local UI = CM:NewModule("UI")
 
-local LIST_TABS = { Guides = true, Leveling = true, Professions = true, Gold = true }
+local LIST_TABS = { Guides = true, Professions = true, Gold = true }
 local MODEL_TABS = {}
 local PAGE = { -- banner text for tabs without a list
   Market = { "Auction prices", "Prices from your own scans and the hourly region data" },
@@ -45,9 +45,13 @@ local function guideOverview(g)
 end
 
 local function listSource(tab)
-  if tab == "Guides" then return CM.Guides.list, "name", guideOverview end
+  if tab == "Guides" then
+    local out = {}
+    for _, g in ipairs(CM.Guides.list or {}) do out[#out + 1] = g end
+    for _, d in ipairs(CM.Data.Leveling or {}) do d.name = d.name or d.title; out[#out + 1] = d end
+    return out, "name", function(e) if e.steps then return guideOverview(e) end return guideLines(e) end
+  end
   if tab == "Dungeons" then return CM.Data.Dungeons, "name", dungeonLines end
-  if tab == "Leveling" then return CM.Data.Leveling, "title", guideLines end
   if tab == "Professions" then return CM.Data.Professions, "title", guideLines end
   if tab == "Gold" then return CM.Data.GoldTips, "title", guideLines end
 end
@@ -119,7 +123,7 @@ end
 -- Window ------------------------------------------------------------------------------------------------
 local T = CM.Theme
 local NAV = {
-  { label = "QUESTING" }, { tab = "Guides" }, { tab = "Leveling" }, { tab = "Dungeons" },
+  { label = "QUESTING" }, { tab = "Guides" }, { tab = "Leveling", text = "Leveling guide" }, { tab = "Dungeons" },
   { label = "PROFESSIONS & GOLD" }, { tab = "Professions" }, { tab = "Crafting" }, { tab = "Gold", text = "Gold making" },
   { label = "MARKET" }, { tab = "Market", text = "Auction prices" }, { tab = "Flips", text = "Vendor flips" },
   { label = "WORLD" }, { tab = "Rares", text = "Rares & treasures" },
@@ -325,6 +329,7 @@ function UI:Build()
   self.settingsPage = self:BuildSettings(body)
   self.journal = CM.Journal:Build(body)
   self.rarePage = CM.RareMap:BuildPage(body)
+  self.levelPage = self:BuildLevelPage(body)
   T:OnChange(function() if f:IsShown() then UI:Refresh() end end)
 end
 
@@ -332,12 +337,15 @@ function UI:LayoutFor(tab)
   local isList = LIST_TABS[tab]
   local isMarket = tab == "Market"
   local isJournal = tab == "Dungeons"
-  local isSettings = tab == "Settings" or isJournal or tab == "Rares"
+  local isLevel = tab == "Leveling"
+  local isSettings = tab == "Settings" or isJournal or tab == "Rares" or isLevel
   self.journal:SetShown(isJournal)
+  self.levelPage:SetShown(isLevel)
   self.rarePage:SetShown(tab == "Rares")
   self.search:SetShown(isMarket)
   self.list.panel:SetShown(isList)
-  self.loadButton:SetShown(tab == "Guides" and #CM.Guides.list > 0)
+  local gsel = CM.Guides.list[UI.selection.Guides or 1]
+  self.loadButton:SetShown(tab == "Guides" and gsel ~= nil and (UI.selection.Guides or 1) <= #CM.Guides.list)
   self.settingsPage:SetShown(tab == "Settings")
   self.text:SetShown(not isSettings)
   local left = isList and (LIST_W + 24) or 12
@@ -542,6 +550,7 @@ function UI:Refresh()
   self:LayoutFor(tab)
   if tab == "Settings" then return end
   if tab == "Rares" then CM.RareMap:FillPage() return end
+  if tab == "Leveling" then self:FillLevelPage() return end
   if tab == "Dungeons" then
     if not self.journalOpened then self.journalOpened = true; CM.Journal:Open(nil) else CM.Journal:FillGrid() end
     return
@@ -552,6 +561,7 @@ function UI:Refresh()
 end
 
 -- Banner art and the 3D model panel for the current page.
+local pageMap
 local function playerZoneMap()
   local m = C_Map.GetBestMapForUnit("player")
   local info = m and C_Map.GetMapInfo(m)
@@ -561,6 +571,17 @@ local function playerZoneMap()
     info = C_Map.GetMapInfo(m)
   end
   return m
+end
+
+-- Banner art that fits the page: the capital with the auction house for prices, the crafting city
+-- for professions, Booty Bay's coast for gold, and where you are for guides and rares.
+local CITY_ART = {
+  Alliance = { Market = 1453, Flips = 1453, Crafting = 1455, Professions = 1455, Gold = 1434 },
+  Horde = { Market = 1454, Flips = 1454, Crafting = 1454, Professions = 1458, Gold = 1434 },
+}
+function pageMap(tab)
+  local side = (UnitFactionGroup("player") == "Horde") and "Horde" or "Alliance"
+  return CITY_ART[side][tab] or playerZoneMap()
 end
 
 function UI:FillVisuals(tab)
@@ -577,12 +598,12 @@ function UI:FillVisuals(tab)
     self.modelPanel:SetItems("BOSSES", bosses, "No bosses listed yet")
   elseif entry then
     local title = entry[key]
-    local sub = tab == "Guides" and string.format("%s   ·   levels %s   ·   %d steps", entry.faction or "Both factions", entry.levels or "?", #(entry.steps or {}))
-      or (tab == "Leveling" and "Leveling guide") or (tab == "Professions" and "Profession guide") or "Gold making"
-    self.banner:Set(icon, title, sub, playerZoneMap())
+    local sub = tab == "Guides" and (entry.steps and string.format("%s   ·   levels %s   ·   %d steps", entry.faction or "Both factions", entry.levels or "?", #entry.steps)
+      or "Reading guide") or (tab == "Professions" and "Profession guide") or "Gold making"
+    self.banner:Set(entry.steps and icon or V:Icon("Leveling", entry), title, sub, pageMap(tab))
   else
     local page = PAGE[tab] or { tab, "" }
-    self.banner:Set(icon, page[1], page[2], playerZoneMap())
+    self.banner:Set(icon, page[1], page[2], pageMap(tab))
   end
   if tab == "Rares" then
     local items = {}
@@ -591,6 +612,211 @@ function UI:FillVisuals(tab)
     end
     self.modelPanel:SetItems("RECENT RARES", items, "Rares you spot this session show up here")
   end
+end
+
+-- Leveling guide page ---------------------------------------------------------------------------------
+-- Zones by level for your faction (or the other one), on either continent. Click a zone to see it,
+-- "Quest here" to send the Smart Guide there, "+" to add it to your own zone route. The route on the
+-- right is what "Follow my route" walks you through, moving on as you outlevel each zone.
+local LV = { side = nil, cont = "Both", sel = nil }
+
+local function smallButton(parent, label, w, onClick)
+  local b = T:Button(parent, label, 11, onClick)
+  b:SetSize(w, 20)
+  b.text:ClearAllPoints(); b.text:SetPoint("CENTER")
+  T:Skin(b, "panel", "border")
+  return b
+end
+
+function UI:BuildLevelPage(body)
+  local page = CreateFrame("Frame", nil, body)
+  page:SetPoint("TOPLEFT", 12, -12)
+  page:SetPoint("BOTTOMRIGHT", -12, 12)
+  page:Hide()
+  page.banner = CM.Visuals:BuildBanner(page)
+  page.banner:SetPoint("TOPLEFT"); page.banner:SetPoint("TOPRIGHT")
+
+  -- left: zones
+  local left = CreateFrame("Frame", nil, page)
+  left:SetPoint("TOPLEFT", page.banner, "BOTTOMLEFT", 0, -10)
+  left:SetPoint("BOTTOMLEFT")
+  left:SetWidth(390)
+  page.left = left
+  local filters = {}
+  local function filter(label, x, w, fn, isSel)
+    local b = smallButton(left, label, w, function() fn(); UI:FillLevelPage() end)
+    b:SetPoint("TOPLEFT", x, 0)
+    b.isSel = isSel
+    filters[#filters + 1] = b
+    return b
+  end
+  filter("Alliance", 0, 64, function() LV.side = "Alliance" end, function() return LV.side == "Alliance" end)
+  filter("Horde", 68, 52, function() LV.side = "Horde" end, function() return LV.side == "Horde" end)
+  filter("Both", 134, 48, function() LV.cont = "Both" end, function() return LV.cont == "Both" end)
+  filter("Eastern Kingdoms", 186, 112, function() LV.cont = "Eastern Kingdoms" end, function() return LV.cont == "Eastern Kingdoms" end)
+  filter("Kalimdor", 302, 72, function() LV.cont = "Kalimdor" end, function() return LV.cont == "Kalimdor" end)
+  page.filters = filters
+  local zp = CreateFrame("Frame", nil, left)
+  zp:SetPoint("TOPLEFT", 0, -26); zp:SetPoint("BOTTOMRIGHT")
+  T:Skin(zp, "panel", "border")
+  local zl = makeScroll(zp)
+  zl:SetPoint("TOPLEFT", 4, -4); zl:SetPoint("BOTTOMRIGHT", -4, 4)
+  zl.child:SetWidth(380)
+  zl.rows = {}
+  page.zones = zl
+
+  -- right: my route
+  local right = CreateFrame("Frame", nil, page)
+  right:SetPoint("TOPLEFT", left, "TOPRIGHT", 12, 0)
+  right:SetPoint("BOTTOMRIGHT")
+  page.right = right
+  right.head = T:Text(right, 12, "heading")
+  right.head:SetPoint("TOPLEFT", 2, -2)
+  right.head:SetText("MY ZONE ROUTE")
+  right.status = T:Text(right, 11, "muted")
+  right.status:SetPoint("TOPLEFT", right.head, "BOTTOMLEFT", 0, -4)
+  right.status:SetPoint("RIGHT", -2, 0)
+  right.status:SetWordWrap(true)
+  local rp = CreateFrame("Frame", nil, right)
+  rp:SetPoint("TOPLEFT", 0, -48); rp:SetPoint("BOTTOMRIGHT", 0, 84)
+  T:Skin(rp, "panel", "border")
+  local rl = makeScroll(rp)
+  rl:SetPoint("TOPLEFT", 4, -4); rl:SetPoint("BOTTOMRIGHT", -4, 4)
+  rl.child:SetWidth(280)
+  rl.rows = {}
+  page.route = rl
+  local SG = CM.SmartGuide
+  local eff = smallButton(right, "Fill: efficient", 104, function()
+    SG:BuildRoster("efficient", LV.cont ~= "Both" and LV.cont or nil); UI:FillLevelPage()
+  end)
+  eff:SetPoint("BOTTOMLEFT", 0, 56)
+  local comp = smallButton(right, "Fill: completionist", 120, function()
+    SG:BuildRoster("completionist", LV.cont ~= "Both" and LV.cont or nil); UI:FillLevelPage()
+  end)
+  comp:SetPoint("LEFT", eff, "RIGHT", 6, 0)
+  local clear = smallButton(right, "Clear", 50, function() wipe(SG:Roster()); UI:FillLevelPage() end)
+  clear:SetPoint("LEFT", comp, "RIGHT", 6, 0)
+  local follow = T:Button(right, "Follow my route", 13, function() SG:FollowRoster(); UI:FillLevelPage() end)
+  follow.primary = true
+  follow:SetHeight(28)
+  follow:SetPoint("BOTTOMLEFT", 0, 22); follow:SetPoint("BOTTOMRIGHT", 0, 22)
+  follow.text:ClearAllPoints(); follow.text:SetPoint("CENTER")
+  T:PaintButton(follow)
+  local std = smallButton(right, "Use the standard path instead", 200, function() SG:FollowPath(); UI:FillLevelPage() end)
+  std:SetPoint("BOTTOMLEFT", 0, 0)
+  local off = smallButton(right, "Unlock", 70, function() SG:LockZone(nil); UI:FillLevelPage() end)
+  off:SetPoint("BOTTOMRIGHT", 0, 0)
+  return page
+end
+
+local function statusColor(lo, hi, level, rec)
+  if rec then return "|cffffd100" end
+  if level > hi then return "|cff808080" end
+  if level < lo then return "|cffff8040" end
+  return "|cffffffff"
+end
+
+function UI:FillLevelPage()
+  local page = self.levelPage
+  if not page or not page:IsShown() then return end
+  local SG, V = CM.SmartGuide, CM.Visuals
+  local mySide = (UnitFactionGroup("player") == "Horde") and "Horde" or "Alliance"
+  LV.side = LV.side or mySide
+  local level = UnitLevel("player") or 1
+  local rec = SG:RecommendedZone()
+  local _, lockName, auto = SG:LockedZone()
+  local counts = {}
+  for _, z in ipairs(SG:ZoneChoices()) do counts[z.name] = z.count end
+  for _, b in ipairs(page.filters) do b.selected = b.isSel(); T:PaintButton(b) end
+
+  -- zones
+  local zones = {}
+  for _, z in ipairs(SG:AllZones(LV.side)) do
+    if LV.cont == "Both" or z[4] == LV.cont then zones[#zones + 1] = z end
+  end
+  LV.sel = LV.sel or rec or (zones[1] and zones[1][1])
+  local inRoster = {}
+  for _, n in ipairs(SG:Roster()) do inRoster[n] = true end
+  local zl = page.zones
+  for _, r in ipairs(zl.rows) do r:Hide() end
+  for i, z in ipairs(zones) do
+    local r = zl.rows[i]
+    if not r then
+      r = T:Button(zl.child, "", 12)
+      r:SetSize(372, 26)
+      r:SetPoint("TOPLEFT", 0, -(i - 1) * 27)
+      r.text:SetWidth(200); r.text:SetWordWrap(false)
+      r.lv = T:Text(r, 11, "muted"); r.lv:SetPoint("LEFT", 200, 0)
+      r.add = smallButton(r, "+", 22, nil)
+      r.add:SetPoint("RIGHT", -4, 0)
+      r.go = smallButton(r, "Quest here", 74, nil)
+      r.go:SetPoint("RIGHT", r.add, "LEFT", -4, 0)
+      zl.rows[i] = r
+    end
+    local name, lo, hi = z[1], z[2], z[3]
+    r.text:SetText(statusColor(lo, hi, level, name == rec) .. name .. "|r" .. (lockName == name and "  |cff66ff66(now)|r" or ""))
+    local n = counts[name]
+    r.lv:SetText(string.format("%d-%d%s", lo, hi, n and string.format("  ·  %d quests", n) or ""))
+    r.selected = LV.sel == name
+    T:PaintButton(r)
+    r:SetScript("OnClick", function() LV.sel = name; UI:FillLevelPage() end)
+    r.go:SetScript("OnClick", function()
+      local id = V:MapID(name)
+      if id then SG:LockZone(id) else CM:Print("Couldn't find the map for %s.", name) end
+      UI:FillLevelPage()
+    end)
+    r.add.text:SetText(inRoster[name] and "|TInterface\\RaidFrame\\ReadyCheck-Ready:12|t" or "+")
+    r.add:SetScript("OnClick", function() SG:RosterAdd(name); UI:FillLevelPage() end)
+    r:Show()
+  end
+  zl.child:SetHeight(math.max(10, #zones * 27))
+  zl:UpdateThumb()
+
+  -- route
+  local rl = page.route
+  for _, r in ipairs(rl.rows) do r:Hide() end
+  local roster = SG:Roster()
+  local now = SG:FollowingRoster() and lockName
+  for i, name in ipairs(roster) do
+    local r = rl.rows[i]
+    if not r then
+      r = T:Button(rl.child, "", 12)
+      r:SetSize(272, 24)
+      r:SetPoint("TOPLEFT", 0, -(i - 1) * 25)
+      r.text:SetWidth(170); r.text:SetWordWrap(false)
+      r.x = smallButton(r, "x", 20, nil); r.x:SetPoint("RIGHT", -2, 0)
+      r.down = smallButton(r, "v", 20, nil); r.down:SetPoint("RIGHT", r.x, "LEFT", -3, 0)
+      r.up = smallButton(r, "^", 20, nil); r.up:SetPoint("RIGHT", r.down, "LEFT", -3, 0)
+      rl.rows[i] = r
+    end
+    local lo, hi = SG.ZoneRange(name)
+    r.text:SetText(string.format("|cff808080%d.|r %s%s|r  |cff808080%s|r", i, statusColor(lo or 1, hi or 60, level, name == now),
+      name, lo and string.format("%d-%d", lo, hi) or ""))
+    r.selected = LV.sel == name
+    T:PaintButton(r)
+    r:SetScript("OnClick", function() LV.sel = name; UI:FillLevelPage() end)
+    r.up:SetScript("OnClick", function() SG:RosterMove(i, -1); UI:FillLevelPage() end)
+    r.down:SetScript("OnClick", function() SG:RosterMove(i, 1); UI:FillLevelPage() end)
+    r.x:SetScript("OnClick", function() SG:RosterRemove(i); UI:FillLevelPage() end)
+    r:Show()
+  end
+  rl.child:SetHeight(math.max(10, #roster * 25))
+  rl:UpdateThumb()
+  local status
+  if SG:FollowingRoster() then status = "Following your route. Now: " .. (lockName or "?")
+  elseif auto then status = "Following the standard path. Now: " .. (lockName or "?")
+  elseif lockName then status = "Questing in " .. lockName .. " (locked)."
+  else status = "Not following a route. Add zones with + or fill it for you." end
+  page.right.status:SetText(status)
+
+  -- banner: the selected zone's own map
+  local lo, hi = SG.ZoneRange(LV.sel or "")
+  page.banner:Set(LV.side == "Horde" and "Interface\\Icons\\INV_BannerPVP_01" or "Interface\\Icons\\INV_BannerPVP_02",
+    LV.sel or "Leveling guide",
+    string.format("%s%s   ·   you're level %d%s", lo and string.format("Levels %d-%d", lo, hi) or "",
+      counts[LV.sel or ""] and string.format("   ·   %d quests you can pick up", counts[LV.sel]) or "",
+      level, rec and ("   ·   best zone now: " .. rec) or ""),
+    V:MapID(LV.sel or ""))
 end
 
 function UI:Show(tab)

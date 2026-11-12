@@ -104,6 +104,18 @@ Click the Z button in the guide window header and choose **Follow the levelling 
 - When you die and release, the arrow points to your body.
 - Efficient routes are no longer capped at 14 steps. Quests in your log are never cut from the route.
 
+### Leveling guide page
+
+The hub's **Leveling guide** page lists every zone for your faction (or the other one) by level, on either continent.
+
+- Click a zone to see its map, level range and how many quests you can pick up there now.
+- **Quest here** sends the Smart Guide to that zone.
+- **+** adds the zone to **My zone route**. Reorder or remove zones in the route with the arrow and x buttons, or let "Fill: efficient" or "Fill: completionist" build one for you.
+- **Follow my route** makes the Smart Guide work through your route, moving on as you outlevel each zone. The Z menu on the guide window has the same option.
+- Reading guides (levelling tips, what's new in Forever, zones by level) moved to the **Guides** page.
+
+When hearthing is the fastest way to the next step, a **Hearth** button appears under the arrow. Click it to use your hearthstone. It only changes outside combat.
+
 ### Whirl's advice
 
 `/wga advice` (or `/wga companion advice`) gives you a talent plan for your class and level, the stats to look for, dungeons that fit your level, and any upgrades sitting in your bags. `build`, `stats`, `dungeons` and `gear` give one part at a time. Tick "I play in groups" or "I'm a veteran player" in settings to change the advice; `/wga advice style group|solo` and `/wga advice experience new|veteran` do the same. On level up Whirl reminds you about talent milestones and, for new players, trainers and professions. Whirl also watches the mobs you kill. If you keep killing mobs that no quest needs, or you're fighting far from the current step, Whirl tells you where to go instead. The advice is written for WGA Companion in our own words and is based on classic class knowledge, so WoW Forever changes may not be reflected yet.

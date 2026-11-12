@@ -22,6 +22,40 @@ local function staticEntry(name)
   return levelsByName[norm(name)]
 end
 
+-- Loading screens: the art you see when zoning into each dungeon (game files, by file ID).
+-- Used for the cards and the page header; the journal's own art is the fallback.
+local LOADSCREEN = {
+  ["ragefire chasm"] = 131862, ["wailing caverns"] = 131882, ["deadmines"] = 131833,
+  ["shadowfang keep"] = 131869, ["blackfathom deeps"] = 131823, ["stockade"] = 131870,
+  ["stormwind stockade"] = 131870, ["gnomeregan"] = 131841, ["razorfen kraul"] = 131865,
+  ["scarlet monastery"] = 131852, ["razorfen downs"] = 131864, ["uldaman"] = 131876,
+  ["zul'farrak"] = 131885, ["maraudon"] = 131850, ["sunken temple"] = 131872,
+  ["temple of atal'hakkar"] = 131872, ["blackrock depths"] = 131824, ["lower blackrock spire"] = 131825,
+  ["upper blackrock spire"] = 131825, ["blackrock spire"] = 131825, ["dire maul"] = 131835,
+  ["scholomance"] = 131868, ["stratholme"] = 131871, ["molten core"] = 131851, ["zul'gurub"] = 131886,
+}
+local GENERIC_SCREEN = 131838   -- the game's generic dungeon loading screen
+J.LOADSCREEN = LOADSCREEN
+
+function J:LoadScreen(name)
+  return LOADSCREEN[norm(name)]
+end
+
+-- Show a loading screen in a texture, cropped to the frame's shape (screens are 4:3)
+local function fitScreen(tex, w, h, bias)
+  if not w or not h or w <= 0 or h <= 0 then tex:SetTexCoord(0, 1, 0, 1) return end
+  local a = w / h
+  if a >= 4 / 3 then
+    local v = (4 / 3) / a
+    local top = (1 - v) * (bias or 0.4)
+    tex:SetTexCoord(0, 1, top, top + v)
+  else
+    local u = a / (4 / 3)
+    tex:SetTexCoord((1 - u) / 2, (1 + u) / 2, 0, 1)
+  end
+end
+J.FitScreen = fitScreen
+
 -- List of dungeons (or raids): { name, ejID, button, lore, mapID, levels, zone, static }
 -- The journal's data can live in Blizzard's journal addon; load it once if the list is empty.
 local triedLoad
@@ -439,9 +473,16 @@ function J:FillGrid()
     c:ClearAllPoints()
     c:SetPoint("TOPLEFT", ((i - 1) % cols) * (cw + 8), -math.floor((i - 1) / cols) * (CARD_H + 8))
     T:Skin(c, "panel", "border")
-    local hasArt = inst.button and c.art:SetTexture(inst.button) ~= false
+    local screen = J:LoadScreen(inst.name) or (inst.isNew and GENERIC_SCREEN)
+    local hasArt
+    if screen and c.art:SetTexture(screen) ~= false then
+      hasArt = true
+      fitScreen(c.art, cw - 2, CARD_H - 2, 0.35)
+    elseif inst.button and c.art:SetTexture(inst.button) ~= false then
+      hasArt = true
+      c.art:SetTexCoord(0, 0.68, 0, 0.75)
+    end
     c.art:SetShown(hasArt and true or false)
-    c.art:SetTexCoord(0, 0.68, 0, 0.75)
     if not hasArt then
       c.mapHolder:Show()
       c.mapHolder.tiles = c.mapHolder.tiles or {}
@@ -480,9 +521,16 @@ function J:Open(inst)
   local nq = #CM.QData:DungeonQuests(inst.name)
   head.sub:SetText(T:Recolor(string.format("%s%s   ·   %d quests", inst.levels and ("Level " .. inst.levels) or "",
     inst.zone and ("   ·   " .. inst.zone) or "", nq)))
-  local hasArt = inst.lore and head.art:SetTexture(inst.lore) ~= false
+  local screen = J:LoadScreen(inst.name) or (inst.isNew and GENERIC_SCREEN)
+  local hasArt
+  if screen and head.art:SetTexture(screen) ~= false then
+    hasArt = true
+    fitScreen(head.art, head:GetWidth(), head:GetHeight(), 0.3)
+  elseif inst.lore and head.art:SetTexture(inst.lore) ~= false then
+    hasArt = true
+    head.art:SetTexCoord(0, 1, 0.25, 0.6)
+  end
   head.art:SetShown(hasArt and true or false)
-  head.art:SetTexCoord(0, 1, 0.25, 0.6)
   page.detail.entrance:SetShown(CM.QData:DungeonEntrance(inst.name) ~= nil)
   self.bosses = self:Bosses(inst)
   self:Tab(self.tab or "Bosses")

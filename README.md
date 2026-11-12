@@ -107,7 +107,7 @@ The hub's **Dungeons** page shows every dungeon as a card with its art, level ra
 
 **Entrance** points the arrow at the dungeon's door.
 
-Art, bosses and loot come from the game's built-in Encounter Journal. Quests come from QuestieDB.
+Card and header art is the loading screen you see when you zone into each dungeon (new Forever dungeons use the game's general dungeon screen until their own is known). Bosses and loot come from the game's built-in Encounter Journal. Quests come from QuestieDB.
 
 ## Rare tracker
 

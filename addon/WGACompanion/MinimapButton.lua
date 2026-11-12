@@ -17,11 +17,16 @@ local function onOff(v) return v == false and "|cffff6060off|r" or "|cff40ff40on
 -- Quick menu -------------------------------------------------------------------------------------------
 local ITEMS = {
   { "Open WGA hub", function() CM.UI:Toggle() end },
-  { "Step guide", function() CM.Guides:Toggle() end },
-  { "Leveling", function() CM.UI:Show("Leveling") end },
+  { function()
+      local f = CM.GuideWindow.frame
+      return "Guide window: " .. ((f and f:IsShown()) and "|cff40ff40shown|r" or "|cffff6060hidden|r")
+    end, function() CM.Guides:Toggle() end },
+  { "Guides", function() CM.UI:Show("Guides") end },
+  { "Leveling guide", function() CM.UI:Show("Leveling") end },
   { "Dungeons", function() CM.UI:Show("Dungeons") end },
   { "Professions", function() CM.UI:Show("Professions") end },
   { "Gold making", function() CM.UI:Show("Gold") end },
+  { "Trainer skills", function() CM.Trainer:Toggle() end },
   "-",
   { function() return "Quest arrow: " .. onOff(CM.db.settings.questArrow) end, function() CM.QuestNav:Command("arrow") end },
   { function() return "Map quest icons: " .. onOff(CM.db.settings.questPins) end, function() CM.QuestNav:Command("pins") end },

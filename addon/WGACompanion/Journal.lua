@@ -23,9 +23,22 @@ local function staticEntry(name)
 end
 
 -- List of dungeons (or raids): { name, ejID, button, lore, mapID, levels, zone, static }
+-- The journal's data can live in Blizzard's journal addon; load it once if the list is empty.
+local triedLoad
+local function ensureEJ()
+  if not hasEJ() then return false end
+  if (EJ_GetNumTiers() or 0) == 0 and not triedLoad then
+    triedLoad = true
+    local load = (C_AddOns and C_AddOns.LoadAddOn) or LoadAddOn
+    if load then pcall(load, "Blizzard_EncounterJournal") end
+  end
+  return (EJ_GetNumTiers() or 0) > 0
+end
+J.EnsureEJ = ensureEJ
+
 function J:Instances(raids)
   local out, seen = {}, {}
-  if hasEJ() then
+  if ensureEJ() then
     local tiers = EJ_GetNumTiers() or 0
     for tier = 1, tiers do
       pcall(EJ_SelectTier, tier)
@@ -49,8 +62,11 @@ function J:Instances(raids)
         for _, e in ipairs(out) do if e.static == d then found = true break end end
         if not found then
           local name = d.name:gsub("^NEW:%s*", "")
+          -- no journal entry: show the dungeon's own map, or failing that the zone it's in
+          local mapID = CM.Visuals:MapID(name)
+          if not mapID and CM.QData:Has() then mapID = CM.QData:DungeonEntrance(name) end
           out[#out + 1] = { name = name, levels = d.levels, zone = d.zone, static = d, isNew = name ~= d.name,
-            mapID = CM.Visuals:MapID(name) }
+            mapID = mapID }
         end
       end
     end

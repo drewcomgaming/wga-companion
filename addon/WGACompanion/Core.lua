@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.17.2"
+CM.version = "0.17.3"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -256,6 +256,7 @@ SlashCmdList.WGACOMPANION = function(input)
   elseif cmd == "companion" or cmd == "buddy" then
     CM.Companion:Command(rest or "")
   elseif cmd == "debug" and rest == "dungeons" then
+    if CM.Journal and CM.Journal.EnsureEJ then CM.Journal.EnsureEJ() end
     local n = EJ_GetNumTiers and EJ_GetNumTiers() or "none"
     CM:Print("Dungeon journal tiers: %s", tostring(n))
     if EJ_SelectTier and type(n) == "number" and n > 0 then
@@ -263,8 +264,12 @@ SlashCmdList.WGACOMPANION = function(input)
       local id, name, _, _, button = EJ_GetInstanceByIndex(1, false)
       CM:Print("First dungeon: %s (id %s), art %s", tostring(name), tostring(id), tostring(button))
     end
-    local list = CM.Journal and CM.Journal.list
-    CM:Print("Dungeons on the page: %d", list and #list or 0)
+    local list = CM.Journal and CM.Journal:Instances(false) or {}
+    CM:Print("Dungeons found: %d", #list)
+    local dm = CM.Visuals:MapID("The Deadmines")
+    local layers = dm and C_Map.GetMapArtLayers and C_Map.GetMapArtLayers(dm)
+    local ent = CM.QData:Has() and CM.QData:DungeonEntrance("The Deadmines")
+    CM:Print("Deadmines map %s (art layers %s), entrance zone map %s", tostring(dm), layers and #layers or "none", tostring(ent))
   elseif cmd == "auto" then
     local st = CM.db.settings
     if rest == "rewards" then

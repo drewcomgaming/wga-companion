@@ -7,10 +7,12 @@ local QL = C_QuestLog
 
 local NEARBY_YARDS = 900   -- quests to pick up within this range (or anywhere on your map)
 -- Two styles: "efficient" picks only quests worth the time for levelling, "completionist" picks everything.
+-- accept: quests to pick up at once; steps: how long the route may get (your log is never cut)
 local LIMITS = {
-  efficient = { accept = 6, steps = 14 },
-  completionist = { accept = 12, steps = 22 },
+  efficient = { accept = 15, steps = 60 },
+  completionist = { accept = 25, steps = 80 },
 }
+local FLIGHT_GRAB = 600     -- an unlearned flight master this close (yards) gets added to the route
 
 function SG:Style()
   return CM.db.settings.guideEfficient == false and "completionist" or "efficient"
@@ -358,6 +360,9 @@ function SG:Collect()
     for i = 1, math.min(#offers, LIMITS[self:Style()].accept) do steps[#steps + 1] = offers[i] end
     table.sort(self.skipped, function(a, b) return (a.title or "") < (b.title or "") end)
   end
+  -- A flight path you haven't learned, close by: always worth grabbing
+  local fp = pm and px and self:UnlearnedFlight(pm, px, py)
+  if fp then steps[#steps + 1] = fp end
   return steps, pm, px, py
 end
 
@@ -366,7 +371,7 @@ local HUB_RADIUS = 450     -- town stops this close (chained) are done together 
 local HUB_CHAIN = 220      -- how far apart two stops can be and still count as the same town
 local DETOUR = 150         -- a town stop this close to where you are mid-run gets picked up on the way
 
-local function isTown(s) return s.kind == "turnin" or s.kind == "accept" end
+local function isTown(s) return s.kind == "turnin" or s.kind == "accept" or s.kind == "flight" end
 
 -- Nearest-next ordering of `list` from `cur`; returns ordered list and last position.
 -- weight(s, d) can scale a candidate's distance.
@@ -506,6 +511,52 @@ CM:On("TAXIMAP_OPENED", function()
       end
     end
   end
+end)
+
+-- Flight masters from the quest database that you haven't learned yet. A flight master counts as
+-- learned once you've opened the flight map at it, or a flight point you know is right next to it.
+function SG:FlightKnown(name, m, x, y)
+  local t = travelDB()
+  t.fm = t.fm or {}
+  if t.fm[name] then return true end
+  for id, n in pairs(t.nodes) do
+    if t.known[id] and n.x then
+      local d = yards({ m = m, x = x, y = y }, { m = n.m, x = n.x, y = n.y })
+      if d and d < 120 then return true end
+    end
+  end
+  return false
+end
+
+function SG:UnlearnedFlight(pm, px, py)
+  local db = CM.Data.QDB and CM.Data.QDB.f
+  if not db or CM.db.settings.grabFlights == false then return nil end
+  local side = faction() == "Horde" and "H" or "A"
+  local me = { m = pm, x = px, y = py }
+  local best, bd
+  for _, f in pairs(db) do
+    if f[2] and f[2]:find(side, 1, true) then
+      for m, packed in pairs(f[3] or {}) do
+        local x, y = packed:match("([%d%.]+),([%d%.]+)")
+        if x then
+          local spot = { m = m, x = tonumber(x) / 100, y = tonumber(y) / 100 }
+          local d = yards(me, spot)
+          if d and d <= FLIGHT_GRAB and (not bd or d < bd) and not self:FlightKnown(f[1], spot.m, spot.x, spot.y) then
+            best, bd = { kind = "flight", verb = "Get flight path", title = (f[1] or "Flight master") .. "'s flight path",
+              npc = f[1], m = spot.m, x = spot.x, y = spot.y, d = d }, d
+          end
+        end
+      end
+    end
+  end
+  if best and CM.Visuals then best.npcID = CM.Visuals:NpcID(best.npc) end
+  return best
+end
+
+-- Remember the flight master you talked to, so it isn't suggested again
+CM:On("TAXIMAP_OPENED", function()
+  local name = UnitName and UnitName("npc")
+  if name then local t = travelDB(); t.fm = t.fm or {}; t.fm[name] = true end
 end)
 
 -- Hearthstone: remember where it takes you

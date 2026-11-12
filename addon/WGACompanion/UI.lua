@@ -496,6 +496,11 @@ function UI:BuildSettings(body)
       { "Include dungeon quests", "guideDungeons", function() CM.GuideWindow:Refresh() end },
       { "Talking companion", "companion", function() CM.Companion.lastKey = nil; CM.GuideWindow:Refresh() end },
       { "Companion reads aloud", "companionVoiceOn", function(v) CM.Companion:Paint(); if not v then pcall(C_VoiceChat.StopSpeakingText) end end },
+      { "Grab nearby flight paths", "grabFlights", function() CM.GuideWindow:Refresh() end },
+      { "Whirl's level-up advice", "companionAdvice" },
+      { "Whirl says if I'm off course", "companionWatch" },
+      { "I play in groups", "groupPlay" },
+      { "I'm a veteran player", "veteranPlayer" },
     }, col = 2 },
     { "Rares & treasures", {
       { "Rare alerts", "rareAlerts" },

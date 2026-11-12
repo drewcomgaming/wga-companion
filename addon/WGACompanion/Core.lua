@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.20.2"
+CM.version = "0.21.0"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -50,6 +50,11 @@ local defaults = {
     companion = true,        -- talking companion above the guide window
     companionVoiceOn = false, -- read the companion's lines aloud (game text-to-speech)
     companionName = "Whirl",
+    companionAdvice = true,
+    companionWatch = true,    -- Whirl notices wrong mobs or being far from the current step   -- Whirl gives talent and beginner tips on level up
+    groupPlay = false,        -- Whirl advises for group play (dungeons, group roles) instead of solo
+    veteranPlayer = false,    -- veteran: short advice; otherwise Whirl adds beginner tips
+    grabFlights = true,       -- Smart Guide: add unlearned flight paths close by
   },
 }
 
@@ -255,6 +260,9 @@ SlashCmdList.WGACOMPANION = function(input)
     CM:Print("Auto-sell grey items %s.", CM.db.settings.autoSellJunk and "on" or "off")
   elseif cmd == "companion" or cmd == "buddy" then
     CM.Companion:Command(rest or "")
+  elseif cmd == "advice" or cmd == "whirl" then
+    local sub, arg = (rest or ""):match("^(%S*)%s*(.-)$")
+    if not CM.Advisor:Command(sub ~= "" and sub or "advice", arg) then CM.Advisor:Command("advice") end
   elseif cmd == "debug" and rest == "dungeons" then
     if CM.Journal and CM.Journal.EnsureEJ then CM.Journal.EnsureEJ() end
     local n = EJ_GetNumTiers and EJ_GetNumTiers() or "none"

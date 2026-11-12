@@ -67,7 +67,7 @@ local function marketLines(query)
       local id = ids[i]
       local rec = CM.PriceDB:Get(id)
       table.insert(lines, string.format("%s  min %s  market %s  vendor %s  |cff808080%d listed, %s|r",
-        CM.db.global.itemNames[id] or id, CM:Money(rec.m, true), CM:Money(CM.PriceDB:Market(id), true),
+        CM:ItemNameOrID(id), CM:Money(rec.m, true), CM:Money(CM.PriceDB:Market(id), true),
         CM:Money(CM.PriceDB:Vendor(id), true), rec.q or 0, CM:Age(rec.t)))
     end
     return lines
@@ -84,9 +84,20 @@ local function marketLines(query)
   for i = 1, math.min(#top, 40) do
     local t = top[i]
     table.insert(lines, string.format("%2d. %s  %s each, %d listed  (~%s)", i,
-      CM.db.global.itemNames[t.id] or t.id, CM:Money(t.mv, true), t.q, CM:Money(t.total, true)))
+      CM:ItemNameOrID(t.id), CM:Money(t.mv, true), t.q, CM:Money(t.total, true)))
   end
   return lines
+end
+
+-- An item's name for the market page: saved name, else ask the game (and load it for next time)
+function CM:ItemNameOrID(id)
+  local names = CM.db.global.itemNames
+  local n = names[id]
+  if n and n ~= "" then return n end
+  n = C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
+  if n and n ~= "" then names[id] = n return n end
+  if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+  return "|cff808080item " .. tostring(id) .. "|r"
 end
 
 local function contentLines(tab)
@@ -590,3 +601,11 @@ function UI:Toggle()
   self:Build()
   if self.frame:IsShown() then self.frame:Hide() else self:Show() end
 end
+
+-- Item names arriving from the server: redraw the market page once they've settled
+local namesPending
+CM:On("ITEM_DATA_LOAD_RESULT", function()
+  if namesPending or UI.current ~= "Market" or not (UI.frame and UI.frame:IsShown()) then return end
+  namesPending = true
+  C_Timer.After(0.5, function() namesPending = nil; if UI.current == "Market" then UI:Refresh() end end)
+end)

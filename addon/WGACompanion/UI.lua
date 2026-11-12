@@ -2,7 +2,7 @@
 local _, CM = ...
 local UI = CM:NewModule("UI")
 
-local LIST_TABS = { Guides = true, Professions = true, Gold = true }
+local LIST_TABS = { Professions = true, Gold = true }
 local MODEL_TABS = {}
 local PAGE = { -- banner text for tabs without a list
   Market = { "Auction prices", "Prices from your own scans and the hourly region data" },
@@ -330,6 +330,7 @@ function UI:Build()
   self.journal = CM.Journal:Build(body)
   self.rarePage = CM.RareMap:BuildPage(body)
   self.levelPage = self:BuildLevelPage(body)
+  self.browser = CM.Browser:Build(body)
   T:OnChange(function() if f:IsShown() then UI:Refresh() end end)
 end
 
@@ -338,14 +339,15 @@ function UI:LayoutFor(tab)
   local isMarket = tab == "Market"
   local isJournal = tab == "Dungeons"
   local isLevel = tab == "Leveling"
-  local isSettings = tab == "Settings" or isJournal or tab == "Rares" or isLevel
+  local isGuides = tab == "Guides"
+  local isSettings = tab == "Settings" or isJournal or tab == "Rares" or isLevel or isGuides
+  self.browser:SetShown(isGuides)
   self.journal:SetShown(isJournal)
   self.levelPage:SetShown(isLevel)
   self.rarePage:SetShown(tab == "Rares")
   self.search:SetShown(isMarket)
   self.list.panel:SetShown(isList)
-  local gsel = CM.Guides.list[UI.selection.Guides or 1]
-  self.loadButton:SetShown(tab == "Guides" and gsel ~= nil and (UI.selection.Guides or 1) <= #CM.Guides.list)
+  self.loadButton:Hide()
   self.settingsPage:SetShown(tab == "Settings")
   self.text:SetShown(not isSettings)
   local left = isList and (LIST_W + 24) or 12
@@ -505,6 +507,8 @@ function UI:BuildSettings(body)
       { "Talking companion", "companion", function() CM.Companion.lastKey = nil; CM.GuideWindow:Refresh() end },
       { "Companion reads aloud", "companionVoiceOn", function(v) CM.Companion:Paint(); if not v then pcall(C_VoiceChat.StopSpeakingText) end end },
       { "Grab nearby flight paths", "grabFlights", function() CM.GuideWindow:Refresh() end },
+      { "Route line on the world map", "routeLine", function() if CM.RouteMap then CM.RouteMap:Draw() end end },
+      { "New trainer skills card on level up", "trainerCard" },
       { "Whirl's level-up advice", "companionAdvice" },
       { "Whirl says if I'm off course", "companionWatch" },
       { "I play in groups", "groupPlay" },
@@ -551,6 +555,7 @@ function UI:Refresh()
   if tab == "Settings" then return end
   if tab == "Rares" then CM.RareMap:FillPage() return end
   if tab == "Leveling" then self:FillLevelPage() return end
+  if tab == "Guides" then CM.Browser:Fill() return end
   if tab == "Dungeons" then
     if not self.journalOpened then self.journalOpened = true; CM.Journal:Open(nil) else CM.Journal:FillGrid() end
     return
@@ -583,6 +588,7 @@ function pageMap(tab)
   local side = (UnitFactionGroup("player") == "Horde") and "Horde" or "Alliance"
   return CITY_ART[side][tab] or playerZoneMap()
 end
+UI.PageMap = pageMap
 
 function UI:FillVisuals(tab)
   local V = CM.Visuals

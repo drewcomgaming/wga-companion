@@ -116,6 +116,24 @@ The hub's **Leveling guide** page lists every zone for your faction (or the othe
 
 When hearthing is the fastest way to the next step, a **Hearth** button appears under the arrow. Click it to use your hearthstone. It only changes outside combat.
 
+### Guides page
+
+The **Guides** page is one place to find every guide.
+
+- **Home** shows what's suggested for you (best zone, dungeons at your level, new trainer skills), then your zone route or the standard path, each with a progress bar of the quests you've handed in.
+- **Current**, **Recent** and **Favorites** sit next to it. Star any guide to keep it under Favorites.
+- Categories down the left: leveling zones, dungeons, raids, professions, gold making, leveling tips and your own recorded guides.
+- Search finds any guide by name.
+- The detail pane shows the art, progress and the next thing to do: Quest here, Add to my route, Open in the dungeon journal, Arrow to entrance or Load this guide.
+
+### Trainer skills
+
+Each visit to your class trainer teaches WGA what they sell and what you've already learned. When you level up and a new spell opens, a card lists what you can learn, the total cost against your gold, and an **Arrow to my trainer** button (the nearest trainer you've visited, or one from the quest database). Click **-** on a spell to stop being reminded about it. `/wga trainer` opens the card any time.
+
+### Route on the world map
+
+The Smart Guide's next stops are drawn on the world map as a dotted line from you, with a numbered marker on each stop. Hover a marker for what to do there, click it to point the arrow. Turn it off under Settings, "Route line on the world map".
+
 ### Whirl's advice
 
 `/wga advice` (or `/wga companion advice`) gives you a talent plan for your class and level, the stats to look for, dungeons that fit your level, and any upgrades sitting in your bags. `build`, `stats`, `dungeons` and `gear` give one part at a time. Tick "I play in groups" or "I'm a veteran player" in settings to change the advice; `/wga advice style group|solo` and `/wga advice experience new|veteran` do the same. On level up Whirl reminds you about talent milestones and, for new players, trainers and professions. Whirl also watches the mobs you kill. If you keep killing mobs that no quest needs, or you're fighting far from the current step, Whirl tells you where to go instead. The advice is written for WGA Companion in our own words and is based on classic class knowledge, so WoW Forever changes may not be reflected yet.

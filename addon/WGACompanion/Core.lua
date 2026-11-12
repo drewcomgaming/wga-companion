@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.22.0"
+CM.version = "0.23.0"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -55,6 +55,8 @@ local defaults = {
     groupPlay = false,        -- Whirl advises for group play (dungeons, group roles) instead of solo
     veteranPlayer = false,    -- veteran: short advice; otherwise Whirl adds beginner tips
     grabFlights = true,       -- Smart Guide: add unlearned flight paths close by
+    routeLine = true,         -- dotted Smart Guide route on the world map
+    trainerCard = true,       -- "new skills at your trainer" card on level up
   },
 }
 
@@ -260,6 +262,8 @@ SlashCmdList.WGACOMPANION = function(input)
     CM:Print("Auto-sell grey items %s.", CM.db.settings.autoSellJunk and "on" or "off")
   elseif cmd == "companion" or cmd == "buddy" then
     CM.Companion:Command(rest or "")
+  elseif cmd == "trainer" or cmd == "skills" then
+    CM.Trainer:Toggle()
   elseif cmd == "advice" or cmd == "whirl" then
     local sub, arg = (rest or ""):match("^(%S*)%s*(.-)$")
     if not CM.Advisor:Command(sub ~= "" and sub or "advice", arg) then CM.Advisor:Command("advice") end
@@ -364,6 +368,7 @@ SlashCmdList.WGACOMPANION = function(input)
     CM:Print("  /wga guide efficient | all  - Smart Guide picks only quests worth the time, or every quest")
     CM:Print("  /wga companion [on|off|voice|voices|voice <n>|rate <n>|name <name>|look|say]  - your talking guide buddy")
     CM:Print("  /wga guides | reset | arrow  - list guides, restart guide, toggle arrow")
+    CM:Print("  /wga trainer  - new spells at your class trainer, their cost, and an arrow there")
     CM:Print("  /wga quest [arrow|pins|minimap|available|marks|size|why]  - quest arrow, map icons and mob marks")
     CM:Print("  /wga record start|stop|export  - record your own route as a guide")
     CM:Print("  /wga level | dungeon | prof | gold  - reference pages")

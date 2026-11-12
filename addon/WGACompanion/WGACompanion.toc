@@ -2,7 +2,7 @@
 ## Title: |cffffd100WGA Companion|r
 ## Notes: Quest guides with waypoint arrow, auction scanning, crafting profit, rare & treasure alerts and economy insight for WoW Forever.
 ## Author: Whirlwind Gaming Academy
-## Version: 0.22.0
+## Version: 0.23.0
 ## SavedVariables: WGACompanionDB
 ## OptionalDeps: WGACompanion_Data
 ## SavedVariablesPerCharacter: WGACompanionCharDB
@@ -44,4 +44,8 @@ SmartGuide.lua
 GuideWindow.lua
 Companion.lua
 Advisor.lua
+Progress.lua
+Trainer.lua
+RouteMap.lua
+GuideBrowser.lua
 MinimapButton.lua

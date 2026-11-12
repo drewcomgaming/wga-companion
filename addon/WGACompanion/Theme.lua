@@ -133,6 +133,31 @@ function T:Gradient(tex)
   if not ok then tex:SetVertexColor(p.accent[1], p.accent[2], p.accent[3], 1) end
 end
 
+-- Progress bar: themed track with a cyan -> purple fill. bar:SetValue(0..1)
+function T:Bar(parent, h)
+  local b = CreateFrame("Frame", nil, parent)
+  b:SetHeight(h or 6)
+  b.track = b:CreateTexture(nil, "BACKGROUND")
+  b.track:SetAllPoints()
+  b.track:SetTexture(WHITE)
+  b.fill = b:CreateTexture(nil, "ARTWORK")
+  b.fill:SetPoint("TOPLEFT"); b.fill:SetPoint("BOTTOMLEFT")
+  self:Gradient(b.fill)
+  local function paint(self)
+    local p = T:Get()
+    self.track:SetVertexColor(p.bar[1], p.bar[2], p.bar[3], p.bar[4] or 1)
+    local w = self:GetWidth() or 0
+    local f = math.max(0, math.min(1, self.frac or 0))
+    self.fill:SetWidth(math.max(0.01, w * f))
+    self.fill:SetShown(f > 0 and w > 0)
+  end
+  function b:SetValue(f) self.frac = f; paint(self) end
+  b:SetScript("OnSizeChanged", paint)
+  self:OnChange(function() paint(b) end)
+  b:SetValue(0)
+  return b
+end
+
 -- Themed font: size grows and gains an outline in high contrast modes.
 function T:Font(fs, size, colorKey, flags)
   local p = self:Get()

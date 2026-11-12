@@ -391,6 +391,8 @@ function GW:Refresh()
 
   local cur = steps[1]
   self.current = cur
+  self.steps = steps
+  if CM.RouteMap then CM.RouteMap:Dirty() end
   -- travel advice belongs to whichever step is on top (skips and picks change that)
   if cur and cur.m and not cur.travel and mode == "smart" then
     local m = C_Map.GetBestMapForUnit("player")

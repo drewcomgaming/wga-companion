@@ -11,7 +11,8 @@ local COLORS = {
   default = { 0.30, 0.80, 1 },
 }
 
-local layer, dots, marks = nil, {}, {}
+local LINE_W = 4       -- line thickness in screen pixels (a dark edge is drawn under it)
+local layer, dots, marks, segs = nil, {}, {}, {}
 
 local function S() return CM.db and CM.db.settings or {} end
 
@@ -38,10 +39,24 @@ local function dot(i)
   return d
 end
 
+-- a solid line with a dark edge under it, so it reads on any map colour
+local function seg(i)
+  local s = segs[i]
+  if s then return s end
+  s = { edge = layer:CreateLine(nil, "ARTWORK"), line = layer:CreateLine(nil, "OVERLAY") }
+  s.edge:SetColorTexture(0, 0, 0, 0.75)
+  segs[i] = s
+  return s
+end
+
 local function mark(i)
   local m = marks[i]
   if m then return m end
   m = CreateFrame("Frame", nil, layer)
+  m.edge = m:CreateTexture(nil, "BORDER")
+  m.edge:SetPoint("TOPLEFT", -2, 2); m.edge:SetPoint("BOTTOMRIGHT", 2, -2)
+  m.edge:SetTexture("Interface\\AddOns\\WGACompanion\\Icons\\node")
+  m.edge:SetVertexColor(0, 0, 0, 0.9)
   m.ring = m:CreateTexture(nil, "ARTWORK")
   m.ring:SetAllPoints()
   m.ring:SetTexture("Interface\\AddOns\\WGACompanion\\Icons\\node")
@@ -87,6 +102,7 @@ end
 
 function RM:Draw()
   for _, d in ipairs(dots) do d:Hide() end
+  for _, s in ipairs(segs) do s.edge:Hide(); s.line:Hide() end
   for _, m in ipairs(marks) do m:Hide() end
   local wm = WorldMapFrame
   if S().routeLine == false or not wm or not wm:IsShown() then return end
@@ -127,10 +143,27 @@ function RM:Draw()
     end
   end
 
-  local nd = 0
+  local nd, ns = 0, 0
+  local solid = layer.CreateLine ~= nil and S().routeDotted ~= true
   local prev
   for _, p in ipairs(pts) do
     if p.gap then prev = nil
+    elseif solid then
+      if prev then
+        ns = ns + 1
+        local sg = seg(ns)
+        local c = COLORS[p.step and p.step.kind or ""] or COLORS.default
+        local x1, y1, x2, y2 = prev.x * w, -prev.y * h, p.x * w, -p.y * h
+        for _, l in ipairs({ sg.edge, sg.line }) do
+          l:SetStartPoint("TOPLEFT", layer, x1, y1)
+          l:SetEndPoint("TOPLEFT", layer, x2, y2)
+        end
+        sg.edge:SetThickness((LINE_W + 3) * unit)
+        sg.line:SetThickness(LINE_W * unit)
+        sg.line:SetColorTexture(c[1], c[2], c[3], 0.95)
+        sg.edge:Show(); sg.line:Show()
+      end
+      prev = p
     else
       if prev and nd < MAX_DOTS then
         local x1, y1, x2, y2 = prev.x * w, prev.y * h, p.x * w, p.y * h
@@ -159,10 +192,10 @@ function RM:Draw()
       mi = mi + 1
       local m = mark(mi)
       local c = COLORS[p.step.kind or ""] or COLORS.default
-      m:SetSize(16 * unit, 16 * unit)
-      m.ring:SetVertexColor(c[1] * 0.35, c[2] * 0.35, c[3] * 0.35, 0.95)
-      m.num:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", math.max(7, math.floor(9 * unit + 0.5)), "OUTLINE")
-      m.num:SetTextColor(c[1], c[2], c[3])
+      m:SetSize(20 * unit, 20 * unit)
+      m.ring:SetVertexColor(c[1], c[2], c[3], 1)
+      m.num:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", math.max(8, math.floor(11 * unit + 0.5)), "OUTLINE")
+      m.num:SetTextColor(1, 1, 1)
       m.num:SetText(p.index)
       m:ClearAllPoints()
       m:SetPoint("CENTER", layer, "TOPLEFT", p.x * w, -p.y * h)

@@ -47,9 +47,9 @@ local TRAVEL_ICON = {
 local function where(s)
   if not s.m or not s.x then return "Location unknown yet" end
   local info = C_Map.GetMapInfo and C_Map.GetMapInfo(s.m)
-  local txt = string.format("%s  %.1f, %.1f", info and info.name or "", s.x * 100, s.y * 100)
+  local txt = info and info.name or ""
   local d = CM.Arrow and CM.Arrow:Compute({ m = s.m, x = s.x, y = s.y })
-  if d then txt = txt .. string.format("   ·   %d yd", d) end
+  if d then txt = txt .. string.format("  ·  %d yd", d) end
   return txt
 end
 
@@ -240,6 +240,11 @@ function GW:Build()
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:AddLine("Current step")
     GameTooltip:AddLine("The arrow points here.", 1, 1, 1)
+    local c = GW.current
+    if c and c.m and c.x then
+      local info = C_Map.GetMapInfo and C_Map.GetMapInfo(c.m)
+      GameTooltip:AddLine(string.format("%s  %.1f, %.1f", info and info.name or "", c.x * 100, c.y * 100), 0.7, 0.7, 0.7)
+    end
     GameTooltip:AddLine("Shift-click: open the quest", 1, 1, 1)
     if GW.current and GW.current.guideIndex then GameTooltip:AddLine("Right-click: mark done and move on", 1, 1, 1) end
     GameTooltip:Show()
@@ -349,10 +354,11 @@ function GW:Steps()
   end
   local style = CM.SmartGuide:Style() == "efficient" and "Efficient" or "Completionist"
   local _, zname, auto = CM.SmartGuide:LockedZone()
-  if zname then style = style .. " · " .. (auto and "Path: " or "") .. zname end
+  if zname then style = style .. "  ·  " .. (auto and (CM.SmartGuide:FollowingRoster() and "Route: " or "Path: ") or "") .. zname end
   local tip, nxt = CM.SmartGuide:MoveOnAdvice()
-  if nxt then style = style .. " · |cffffd100move on to " .. nxt .. "|r" end
-  return route, string.format("%s   ·   %d to turn in, %d open, %d new", style, ready, open, accepts)
+  if nxt then style = style .. "  ·  |cffffd100move on to " .. nxt .. "|r" end
+  GW.counts = string.format("%d to turn in  ·  %d open  ·  %d new", ready, open, accepts)
+  return route, style
 end
 
 function GW:Refresh()
@@ -368,7 +374,8 @@ function GW:Refresh()
   f.zone.text:SetText(CM.SmartGuide:LockedZone() and "|cff66ff66Z|r" or "Z")
   f.style.text:SetText(CM.SmartGuide:Style() == "efficient" and "E" or "C")
   local level, frac = CM.SmartGuide:Summary()
-  f.sub:SetText(string.format("Level %d  (%d%%)   ·   %s", level, math.floor(frac * 100), subtitle or ""))
+  f.sub:SetText(string.format("Level %d  |cff808080%d%%|r   ·   %s", level, math.floor(frac * 100), subtitle or ""))
+  f.nextLabel:SetText(mode == "smart" and GW.counts and ("COMING UP   |cff808080" .. GW.counts .. "|r") or "COMING UP")
   f.xp.bg:SetVertexColor(p.bar[1], p.bar[2], p.bar[3], 1)
   f.xp.fill:SetVertexColor(p.accent[1], p.accent[2], p.accent[3], 1)
   f.xp.fill:SetWidth(math.max(1, (W - 20) * frac))
@@ -404,7 +411,7 @@ function GW:Refresh()
     card.who:SetText(mode == "smart" and "Check the Leveling page in the hub for where to go next." or "Pick another guide in the hub.")
     card.where:SetText("")
     card.objs:SetText("")
-    if CM.Arrow then CM.Arrow:SetTarget(nil) end
+    if CM.Arrow then CM.Arrow:SetTarget(nil); CM.Arrow:UpdateHearth() end
   else
     local k = KIND[cur.kind] or KIND.complete
     local verbColor = p[k.color] or p.accent
@@ -419,7 +426,7 @@ function GW:Refresh()
     if ok then
       card.model:Show(); card.kindIcon:Hide()
       pcall(card.model.SetPortraitZoom, card.model, 0.75)
-      card.badge:Show(); setIcon(card.badge, cur.kind)
+      card.badge:Hide()
     else
       card.model:Hide(); card.badge:Hide()
       card.kindIcon:Show(); setIcon(card.kindIcon, cur.kind)
@@ -428,7 +435,8 @@ function GW:Refresh()
     local tr = cur.travel
     if tr and tr.text then
       local icon = TRAVEL_ICON[tr.kind] or TRAVEL_ICON.run
-      lines[#lines + 1] = string.format("|T%s:14:14|t  |cff66ccff%s|r", icon, tr.text)
+      lines[#lines + 1] = string.format("|T%s:16:16|t  |cff66ccff%s|r", icon, tr.text)
+      if (cur.objectives and #cur.objectives > 0) or cur.kind == "turnin" then lines[#lines + 1] = " " end
     end
     for _, o in ipairs(cur.objectives or {}) do
       lines[#lines + 1] = (o.done and CHECK or OPEN) .. "  " .. (o.done and ("|cff808080" .. o.text .. "|r") or o.text)
@@ -439,6 +447,7 @@ function GW:Refresh()
       local via = cur.travel and cur.travel.via
       if via then CM.Arrow:SetTarget(via.m, via.x, via.y, "Travel: " .. (cur.travel.text or ""))
       elseif cur.m and cur.x then CM.Arrow:SetTarget(cur.m, cur.x, cur.y, (cur.verb and (cur.verb .. ": ") or "") .. (cur.title or "")) else CM.Arrow:SetTarget(nil) end
+      CM.Arrow:UpdateHearth()
     end
   end
   local objH = (cur and (#(cur.objectives or {}) > 0 or cur.kind == "turnin" or (cur.travel and cur.travel.text)))
@@ -508,6 +517,11 @@ function GW:ZoneMenu()
   for _, z in ipairs(SG:ZoneChoices()) do counts[z.name] = z.count end
   items[#items + 1] = { label = string.format("|cff66ff66Follow the levelling path|r   |cff808080now %s|r", rec or "?"),
     fn = function() SG:FollowPath() end }
+  if #SG:Roster() > 0 then
+    items[#items + 1] = { label = string.format("|cff66ff66Follow my zone route|r   |cff808080%d zones|r", #SG:Roster()),
+      fn = function() SG:FollowRoster() end }
+  end
+  items[#items + 1] = { label = "Open the Leveling guide (zones, my route)...", fn = function() CM.UI:Show("Leveling") end }
   local other = cont == "Kalimdor" and "Eastern Kingdoms" or "Kalimdor"
   items[#items + 1] = { label = "Path: " .. cont .. "   |cff808080(click for " .. other .. ")|r",
     fn = function() SG:SetPathContinent(other) end, keepOpen = true }

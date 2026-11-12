@@ -75,7 +75,7 @@ function A:Build()
   f.title:SetSpacing(2)
   f.title:SetShadowOffset(1, -1)
   f:SetScript("OnDragStart", function(self) self.dragging = true; self:StartMoving() end)
-  f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); C_Timer.After(0, function() self.dragging = false end) end)
+  f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); C_Timer.After(0, function() self.dragging = false; A:UpdateHearth() end) end)
   f:SetScript("OnMouseUp", function(self, button)
     if self.dragging then return end
     if button == "RightButton" then A:SetTarget(nil); temp = nil; if not auto then f:Hide() end
@@ -289,5 +289,76 @@ end
 
 function A:OnLogin()
   C_Timer.NewTicker(1, function() A:LearnGate() end)
+  A:BuildHearth()
+  if CM.GuideWindow and CM.GuideWindow.Hide then hooksecurefunc(CM.GuideWindow, "Hide", function() A:UpdateHearth() end) end
   if UnitIsGhost and UnitIsGhost("player") then C_Timer.After(2, deathUpdate) end
 end
+
+-- Hearth button under the arrow -------------------------------------------------------------------
+-- When the guide says hearthing saves time, a click on this button uses your hearthstone. Using an
+-- item needs a secure button; it can only be shown, hidden or moved out of combat, and it sits on
+-- UIParent (placed under the arrow) so the arrow itself stays free to change in combat.
+function A:BuildHearth()
+  if self.hearth or InCombatLockdown() then return end
+  local b = CreateFrame("Button", "WGACompanionHearthButton", UIParent, "SecureActionButtonTemplate")
+  b:SetSize(190, 26)
+  b:RegisterForClicks("AnyUp", "AnyDown")
+  b:SetAttribute("type", "item")
+  local T = CM.Theme
+  if T and T.Skin then T:Skin(b, "panel", "accent") end
+  b.icon = b:CreateTexture(nil, "ARTWORK")
+  b.icon:SetSize(20, 20); b.icon:SetPoint("LEFT", 4, 0)
+  b.icon:SetTexture("Interface\\Icons\\INV_Misc_Rune_01")
+  b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  b.text:SetPoint("LEFT", b.icon, "RIGHT", 6, 0); b.text:SetPoint("RIGHT", -6, 0)
+  b.text:SetJustifyH("LEFT")
+  b:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:AddLine("Use your Hearthstone")
+    if self.tip then GameTooltip:AddLine(self.tip, 1, 1, 1, true) end
+    GameTooltip:Show()
+  end)
+  b:SetScript("OnLeave", GameTooltip_Hide)
+  b:Hide()
+  self.hearth = b
+end
+
+function A:UpdateHearth()
+  if InCombatLockdown() then self.hearthPending = true return end
+  self:BuildHearth()
+  local b = self.hearth
+  if not b then return end
+  local GW = CM.GuideWindow
+  local tr = GW and GW.current and GW.current.travel
+  local want = tr and (tr.kind == "hearth" or tr.kind == "hearthfly") and self.frame and self.frame:IsShown()
+    and GW.frame and GW.frame:IsShown()
+    and CM.db.settings.hearthButton ~= false
+  if not want then b:Hide() return end
+  local SG = CM.SmartGuide
+  local id = SG and SG.HearthItem and SG:HearthItem() or 6948
+  b:SetAttribute("item", "item:" .. id)
+  local icon = C_Item.GetItemIconByID and C_Item.GetItemIconByID(id)
+  if icon then b.icon:SetTexture(icon) end
+  local label = (tr.text or "Hearth"):gsub(", saves", "  |cff66ff66saves")
+  b.text:SetText(label .. "|r")
+  b.tip = tr.text
+  -- place it under the arrow's title, in screen coordinates
+  local f = self.frame
+  local x, y = f:GetCenter()
+  local scale = f:GetEffectiveScale() / UIParent:GetEffectiveScale()
+  local titleH = (f.title and f.title:GetStringHeight() or 12) + (f.dist and f.dist:GetStringHeight() or 16) + 12
+  b:ClearAllPoints()
+  if x and y then
+    b:SetPoint("TOP", UIParent, "BOTTOMLEFT", x * scale, (y - f:GetHeight() / 2 - titleH) * scale)
+  else
+    b:SetPoint("TOP", UIParent, "TOP", 0, -260)
+  end
+  b:Show()
+end
+
+CM:On("PLAYER_REGEN_ENABLED", function()
+  if A.hearthPending then A.hearthPending = nil; A:UpdateHearth() end
+end)
+CM:On("PLAYER_REGEN_DISABLED", function()
+  if A.hearth and A.hearth:IsShown() then A.hearthPending = true end
+end)

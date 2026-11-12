@@ -97,7 +97,7 @@ local function faction() return (UnitFactionGroup and UnitFactionGroup("player")
 function SG:PathContinent()
   local p = lockDB().pathContinent
   if p then return p end
-  local _, race = UnitRace and UnitRace("player")
+  local race = UnitRace and select(2, UnitRace("player"))
   return START[race or ""] and START[race][1] or "Eastern Kingdoms"
 end
 function SG:SetPathContinent(c)
@@ -105,11 +105,108 @@ function SG:SetPathContinent(c)
   CM:Print("Levelling path: %s.", c)
   if CM.GuideWindow then CM.GuideWindow:Refresh() end
 end
-function SG:Path() return PATHS[faction()][self:PathContinent()] or {} end
+-- Your own zone route (the Leveling guide page builds it): { "Elwynn Forest", "Westfall", ... }
+local function rosterMode() local l = lockDB().zoneLock; return l and l.roster end
+function SG:Roster()
+  lockDB().roster = lockDB().roster or {}
+  return lockDB().roster
+end
+
+function SG:Path()
+  if rosterMode() and #self:Roster() > 0 then
+    local out = {}
+    for _, name in ipairs(self:Roster()) do
+      local lo, hi = SG.ZoneRange(name)
+      out[#out + 1] = { name, lo or 1, hi or 60 }
+    end
+    return out
+  end
+  return PATHS[faction()][self:PathContinent()] or {}
+end
+
+-- Every zone for a faction, both continents, by level: { name, lo, hi, continent }
+function SG:AllZones(side)
+  local out, seen = {}, {}
+  for cont, list in pairs(PATHS[side or faction()] or {}) do
+    for _, z in ipairs(list) do
+      if not seen[z[1]] then seen[z[1]] = true; out[#out + 1] = { z[1], z[2], z[3], cont } end
+    end
+  end
+  table.sort(out, function(a, b) if a[2] ~= b[2] then return a[2] < b[2] end return a[1] < b[1] end)
+  return out
+end
+
+-- Fill the route for you. Efficient: one zone per level band on one continent, moving on two
+-- levels before a zone's top. Completionist: every zone on the continent in level order.
+function SG:BuildRoster(style, cont)
+  cont = cont or self:PathContinent()
+  local list = PATHS[faction()][cont] or {}
+  local out = {}
+  local race = UnitRace and select(2, UnitRace("player"))
+  local start = START[race or ""]
+  if style == "completionist" then
+    local sorted = {}
+    for _, z in ipairs(list) do sorted[#sorted + 1] = z end
+    table.sort(sorted, function(a, b) if a[2] ~= b[2] then return a[2] < b[2] end return a[1] < b[1] end)
+    for _, z in ipairs(sorted) do
+      if z[2] > 1 or (start and start[2] == z[1]) or not start then out[#out + 1] = z[1] end
+    end
+  else
+    local used, cur = {}, 1
+    if start and start[1] == cont then out[1] = start[2]; used[start[2]] = true; cur = 8 end
+    for _ = 1, 20 do
+      if cur >= 60 then break end
+      local best
+      -- the freshest zone for your level: the highest starting level you can already handle
+      for _, z in ipairs(list) do
+        if not used[z[1]] and z[2] > 1 and z[2] <= cur + 2 and z[3] > cur + 3
+          and (not best or z[2] > best[2] or (z[2] == best[2] and z[3] > best[3])) then best = z end
+      end
+      if not best then
+        for _, z in ipairs(list) do
+          if not used[z[1]] and z[3] > cur and (z[2] > 1 or #out == 0) and (not best or z[2] < best[2]) then best = z end
+        end
+      end
+      if not best then break end
+      out[#out + 1] = best[1]; used[best[1]] = true
+      if best[2] == 1 then cur = math.max(cur, 8) end
+      -- stay until about 60% through its range, then move to the next fresh zone
+      cur = math.max(cur + 3, math.floor(math.max(best[2], cur) + (best[3] - math.max(best[2], cur)) * 0.6 + 0.5))
+    end
+  end
+  table.sort(out, function(a, b) return (SG.ZoneRange(a) or 0) < (SG.ZoneRange(b) or 0) end)
+  lockDB().roster = out
+  return out
+end
+
+function SG:RosterAdd(name)
+  local r = self:Roster()
+  for _, n in ipairs(r) do if n == name then return end end
+  r[#r + 1] = name
+  table.sort(r, function(a, b) return (SG.ZoneRange(a) or 0) < (SG.ZoneRange(b) or 0) end)
+end
+function SG:RosterRemove(i) table.remove(self:Roster(), i) end
+function SG:RosterMove(i, d)
+  local r = self:Roster()
+  local j = i + d
+  if j < 1 or j > #r then return end
+  r[i], r[j] = r[j], r[i]
+end
+function SG:FollowRoster()
+  if #self:Roster() == 0 then CM:Print("Your zone route is empty. Add zones on the Leveling guide page first.") return end
+  lockDB().zoneLock = { auto = true, roster = true }
+  local name, lo, hi = self:RecommendedZone()
+  CM:Print("Smart Guide follows your zone route. Now: %s (%d-%d).", name or "?", lo or 0, hi or 0)
+  if CM.Companion then CM.Companion.lastKey = nil end
+  if CM.GuideWindow then CM.GuideWindow:Refresh() end
+end
+function SG:FollowingRoster() return rosterMode() and true or false end
 
 local function rangeOf(name)
-  for _, cont in pairs(PATHS[faction()]) do
-    for _, z in ipairs(cont) do if z[1] == name then return z[2], z[3] end end
+  for _, side in ipairs({ faction(), faction() == "Horde" and "Alliance" or "Horde" }) do
+    for _, cont in pairs(PATHS[side]) do
+      for _, z in ipairs(cont) do if z[1] == name then return z[2], z[3] end end
+    end
   end
 end
 SG.ZoneRange = rangeOf
@@ -119,8 +216,11 @@ SG.ZoneRange = rangeOf
 function SG:RecommendedZone(level)
   level = level or UnitLevel("player") or 1
   local path = self:Path()
-  local _, race = UnitRace and UnitRace("player")
-  if level < 10 and START[race or ""] and START[race][1] == self:PathContinent() then
+  local race = UnitRace and select(2, UnitRace("player"))
+  local startOK = START[race or ""] and (rosterMode() and #self:Roster() > 0
+    and (function() for _, z in ipairs(path) do if z[1] == START[race][2] then return true end end end)()
+    or (not rosterMode() and START[race][1] == self:PathContinent()))
+  if level < 10 and startOK then
     local name = START[race][2]
     return name, rangeOf(name)
   end
@@ -665,6 +765,7 @@ local function hearthReady()
   return true
 end
 SG.HearthReady = hearthReady
+function SG:HearthItem() hearthCount(); return HEARTHSTONE end
 
 local function runSpeed()
   local _, run = GetUnitSpeed and GetUnitSpeed("player")

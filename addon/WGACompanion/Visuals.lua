@@ -56,7 +56,7 @@ end
 -- Icons ----------------------------------------------------------------------------------------------
 local I = "Interface\\Icons\\"
 V.tabIcons = {
-  Guides = I .. "INV_Misc_Map_01", Leveling = I .. "INV_Misc_Book_09", Dungeons = I .. "INV_Misc_Key_03",
+  Guides = I .. "INV_Misc_Book_09", Leveling = I .. "INV_Misc_Map_01", Dungeons = I .. "INV_Misc_Key_03",
   Professions = I .. "Trade_BlackSmithing", Crafting = I .. "Trade_Engineering", Gold = I .. "INV_Misc_Coin_01",
   Market = I .. "INV_Misc_Coin_02", Flips = I .. "INV_Misc_Bag_10", Rares = I .. "Ability_Hunter_BeastTracking",
   Settings = I .. "INV_Misc_Gear_01",

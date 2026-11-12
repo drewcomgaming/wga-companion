@@ -589,6 +589,58 @@ function SG:CheckBind()
   else t.hearth = { name = bind } end   -- spot unknown until you hearth there once
 end
 
+-- Where your hearthstone takes you, before you've used it: the inn of the town you're bound to.
+-- Towns map to innkeepers from the quest database; more are learned as you walk past inns.
+local TOWN_INN = {
+  ["Goldshire"] = 295, ["Kharanos"] = 1247, ["Menethil Harbor"] = 1464, ["Southshore"] = 2352,
+  ["Tarren Mill"] = 2388, ["The Crossroads"] = 3934, ["Ironforge"] = 5111, ["Brill"] = 5688,
+  ["Grom'gol Base Camp"] = 5814, ["Theramore Isle"] = 6272, ["Lakeshire"] = 6727, ["Thelsamar"] = 6734,
+  ["Darnassus"] = 6735, ["Dolanaar"] = 6736, ["Auberdine"] = 6737, ["Astranaar"] = 6738,
+  ["The Sepulcher"] = 6739, ["Stormwind City"] = 6740, ["Stormwind"] = 6740, ["Trade District"] = 6740,
+  ["Undercity"] = 6741, ["Thunder Bluff"] = 6746, ["Bloodhoof Village"] = 6747, ["Darkshire"] = 6790,
+  ["Ratchet"] = 6791, ["Booty Bay"] = 6807, ["Razor Hill"] = 6928, ["Orgrimmar"] = 6929,
+  ["Valley of Strength"] = 6929, ["Stonard"] = 6930, ["Camp Taurajo"] = 7714, ["Sun Rock Retreat"] = 7731,
+  ["Gadgetzan"] = 7733, ["Feathermoon Stronghold"] = 7736, ["Camp Mojache"] = 7737, ["Aerie Peak"] = 7744,
+  ["Sentinel Hill"] = 8931, ["Kargath"] = 9356, ["Hammerfall"] = 9501, ["Nijel's Point"] = 11103,
+  ["Shadowprey Village"] = 11106, ["Freewind Post"] = 11116, ["Everlook"] = 11118,
+  ["Splintertree Post"] = 12196, ["Revantusk Village"] = 14731, ["Cenarion Hold"] = 15174,
+  ["Light's Hope Chapel"] = 16256,
+}
+local function innSpot(id)
+  local k = CM.Data.QDB and CM.Data.QDB.k and CM.Data.QDB.k[id]
+  if not k then return nil end
+  for m, packed in pairs(k[3] or {}) do
+    local x, y = packed:match("([%d%.]+),([%d%.]+)")
+    if x then return m, tonumber(x) / 100, tonumber(y) / 100 end
+  end
+end
+function SG:HearthSpot()
+  local t = travelDB()
+  local h = t.hearth
+  if h and h.m then return h end
+  local bind = h and h.name or (GetBindLocation and GetBindLocation())
+  if not bind then return nil end
+  local id = TOWN_INN[bind] or (t.inns and t.inns[bind])
+  local m, x, y = innSpot(id)
+  if not m then return nil end
+  return { m = m, x = x, y = y, name = bind, guess = true }
+end
+-- Walking past an inn teaches us the town's name for it
+function SG:LearnInn()
+  local k = CM.Data.QDB and CM.Data.QDB.k
+  local sub = GetSubZoneText and GetSubZoneText()
+  if not k or not sub or sub == "" or TOWN_INN[sub] then return end
+  local t = travelDB()
+  if t.inns and t.inns[sub] then return end
+  local pm, px, py = here()
+  if not px then return end
+  for id in pairs(k) do
+    local m, x, y = innSpot(id)
+    local d = m and yards({ m = pm, x = px, y = py }, { m = m, x = x, y = y })
+    if d and d < 30 then t.inns = t.inns or {}; t.inns[sub] = id return end
+  end
+end
+
 local function hearthReady()
   if (C_Item.GetItemCount and C_Item.GetItemCount(HEARTHSTONE) or 0) == 0 then return false end
   local start, duration = 0, 0
@@ -666,6 +718,7 @@ end
 -- (and you didn't hearth or fly), the spot you left from is a way there.
 local lastSpot
 C_Timer.NewTicker(3, function()
+  pcall(SG.LearnInn, SG)
   if UnitOnTaxi and UnitOnTaxi("player") then return end
   local m, x, y = here()
   if m and x then lastSpot = { m = m, x = x, y = y, c = continentOf(m, x, y) } end
@@ -718,7 +771,7 @@ function SG:Travel(from, to)
   local direct = yards(from, to)
   if not direct and to.m and from.m then
     -- other continent: hearth if your inn is over there, otherwise the known way across
-    local h = travelDB().hearth
+    local h = SG:HearthSpot()
     if h and h.m and hearthReady() and yards(h, to) then
       return { kind = "hearth", cost = 0, secs = HEARTH_TIME,
         text = string.format("Hearth to %s, it's on that side of the world", h.name or "your inn") }
@@ -743,7 +796,7 @@ function SG:Travel(from, to)
     f.text = string.format("Fly %s to %s (%s%s)", f.from or "?", f.to or "?", f.guess and "about " or "", CM:Money(f.cost, true))
     options[#options + 1] = f
   end
-  local h = travelDB().hearth
+  local h = SG:HearthSpot()
   if h and h.m and hearthReady() then
     local d = yards(h, to)
     if d then

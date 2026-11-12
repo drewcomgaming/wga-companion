@@ -51,6 +51,10 @@ In Efficient style the route works like a levelling player would: hand in and pi
 
 For the next stop the guide window also says how to get there: run, take a flight path, or use your hearthstone (or hearth and then fly), whichever is fastest. Flights are only suggested when you can afford them: under a quarter of your money, or up to 60% when it saves at least 3 minutes. WGA learns your flight points and their prices each time you open a flight master, and where your hearthstone goes when you set it at an innkeeper or the first time you use it.
 
+### Zone lock
+
+Click **Z** in the guide window header to pick a zone to quest in: where you are now, or one of the zones with the most quests for your level. While locked, new quests only come from that zone (however far away you are), and open quests in other zones wait at the end of the route. Turn-ins anywhere still count. Right-click Z or `/wga zone off` to unlock; `/wga zone here` or `/wga zone <name>` from chat.
+
 ### Efficient or Completionist
 
 The Smart Guide has two styles, switched with the **E / C** button in the guide window header, in Settings, or with `/wga guide efficient` and `/wga guide all`.

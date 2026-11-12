@@ -25,6 +25,76 @@ end
 
 local function S(v) return CM:Safe(v) end
 
+-- Zone lock ---------------------------------------------------------------------------------------
+-- The zone a map belongs to (walks up from sub-zones and dungeons/caves to the zone).
+local zoneCache = {}
+local function zoneOf(m)
+  if not m then return nil end
+  if zoneCache[m] ~= nil then return zoneCache[m] or nil end
+  local cur, z = m, nil
+  for _ = 1, 6 do
+    local info = C_Map.GetMapInfo and C_Map.GetMapInfo(cur)
+    if not info then break end
+    if info.mapType == 3 then z = cur break end
+    if (info.mapType or 0) < 3 then break end
+    cur = info.parentMapID
+  end
+  zoneCache[m] = z or false
+  return z
+end
+SG.ZoneOf = zoneOf
+
+local function lockDB() return WGACompanionCharDB end
+function SG:LockedZone()
+  local l = lockDB().zoneLock
+  return l and l.id, l and l.name
+end
+function SG:LockZone(id)
+  if not id then
+    lockDB().zoneLock = nil
+    CM:Print("Smart Guide: zone lock off, suggesting quests near you again.")
+  else
+    local info = C_Map.GetMapInfo and C_Map.GetMapInfo(id)
+    lockDB().zoneLock = { id = id, name = info and info.name or ("map " .. id) }
+    CM:Print("Smart Guide: locked to %s. New quests only come from there.", lockDB().zoneLock.name)
+  end
+  if CM.Companion then CM.Companion.lastKey = nil end
+  if CM.GuideWindow then CM.GuideWindow:Refresh() end
+end
+
+-- Zones with quests for you right now: { {id, name, count, lo, hi}, ... } most quests first
+function SG:ZoneChoices()
+  local QD = CM.QData
+  local by = {}
+  if not QD:Has() then return {} end
+  local level = UnitLevel("player") or 1
+  for _, id in ipairs(QD:Available(false)) do
+    if not QD:NotWorthIt(id, level) then
+      for _, st in ipairs(QD:Starters(id)) do
+        local spawns = QD:Spawns(st[1], st[2])
+        local m = spawns and next(spawns)
+        local z = zoneOf(m)
+        if z then
+          local e = by[z] or { id = z, count = 0, lo = 99, hi = 0 }
+          e.count = e.count + 1
+          local l = QD:Level(id) or level
+          e.lo, e.hi = math.min(e.lo, l), math.max(e.hi, l)
+          by[z] = e
+          break
+        end
+      end
+    end
+  end
+  local out = {}
+  for _, e in pairs(by) do
+    local info = C_Map.GetMapInfo and C_Map.GetMapInfo(e.id)
+    e.name = info and info.name or ("map " .. e.id)
+    out[#out + 1] = e
+  end
+  table.sort(out, function(a, b) return a.count > b.count end)
+  return out
+end
+
 local function here()
   local m = C_Map.GetBestMapForUnit("player")
   local p = m and C_Map.GetPlayerMapPosition(m, "player")
@@ -99,6 +169,10 @@ function SG:Collect()
       step.dungeon = QD:Has() and QD:IsDungeonQuest(id) or nil
       -- already in the log but poor value: keep it, at the end of the route
       if efficient and not ready and QD:Has() then step.later = QD:NotWorthIt(id, myLevel) end
+      local lock, lockName = self:LockedZone()
+      if lock and not ready and step.m and zoneOf(step.m) ~= lock then
+        step.later = step.later or ("outside " .. lockName)
+      end
       steps[#steps + 1] = step
     end
   end
@@ -111,7 +185,10 @@ function SG:Collect()
       local m, x, y, who = QD:Nearest(QD:Starters(id), pm, px, py)
       if m and not inLog[id] then
         local d = pm and px and yards({ m = pm, x = px, y = py }, { m = m, x = x, y = y })
-        if m == pm or (d and d < NEARBY_YARDS) then
+        local lock = self:LockedZone()
+        local inRange
+        if lock then inRange = zoneOf(m) == lock else inRange = m == pm or (d and d < NEARBY_YARDS) end
+        if inRange then
           local why = efficient and QD:NotWorthIt(id, myLevel)
           local dungeon = QD:IsDungeonQuest(id)
           if not why and efficient and dungeon and not dungeons then why = "dungeon quest (dungeons are off)" end

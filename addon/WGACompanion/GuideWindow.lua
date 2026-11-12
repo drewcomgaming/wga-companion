@@ -142,6 +142,19 @@ function GW:Build()
     CM.SmartGuide:SetStyle(CM.SmartGuide:Style() == "efficient" and "completionist" or "efficient")
   end)
   f.style:SetPoint("RIGHT", f.mode, "LEFT", -2, 0)
+  f.zone = iconButton(head, "Z", "", function(_, button)
+    if button == "RightButton" then CM.SmartGuide:LockZone(nil) else GW:ZoneMenu() end
+  end)
+  f.zone:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  f.zone:SetPoint("RIGHT", f.style, "LEFT", -2, 0)
+  f.zone:SetScript("OnEnter", function(self)
+    local _, name = CM.SmartGuide:LockedZone()
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine(name and ("Locked to " .. name) or "Zone lock: off")
+    GameTooltip:AddLine("Click: pick a zone to quest in. New quests only come from there,", 1, 1, 1)
+    GameTooltip:AddLine("and open quests elsewhere wait until the end. Right-click: unlock.", 1, 1, 1)
+    GameTooltip:Show()
+  end)
   f.style:SetScript("OnEnter", function(self)
     local SG = CM.SmartGuide
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -334,6 +347,8 @@ function GW:Steps()
     if s.kind == "accept" then accepts = accepts + 1 elseif s.kind == "turnin" then ready = ready + 1 else open = open + 1 end
   end
   local style = CM.SmartGuide:Style() == "efficient" and "Efficient" or "Completionist"
+  local _, zname = CM.SmartGuide:LockedZone()
+  if zname then style = style .. " · " .. zname end
   return route, string.format("%s   ·   %d to turn in, %d open, %d new", style, ready, open, accepts)
 end
 
@@ -346,6 +361,8 @@ function GW:Refresh()
   f.title:SetText(mode == "smart" and "WGA Smart Guide" or "WGA Guide")
   f.mode.text:SetText(mode == "smart" and "G" or "S")
   f.style:SetShown(mode == "smart")
+  f.zone:SetShown(mode == "smart")
+  f.zone.text:SetText(CM.SmartGuide:LockedZone() and "|cff66ff66Z|r" or "Z")
   f.style.text:SetText(CM.SmartGuide:Style() == "efficient" and "E" or "C")
   local level, frac = CM.SmartGuide:Summary()
   f.sub:SetText(string.format("Level %d  (%d%%)   ·   %s", level, math.floor(frac * 100), subtitle or ""))
@@ -450,6 +467,51 @@ function GW:Refresh()
     y = y - 28
   end
   f:SetHeight(-y + 8)
+end
+
+-- Zone picker: your current zone plus the zones with the most quests for your level
+function GW:ZoneMenu()
+  local f = self.frame
+  if not f then return end
+  local m = f.zoneMenu
+  if not m then
+    m = CreateFrame("Frame", nil, f)
+    m:SetFrameStrata("DIALOG")
+    m:SetWidth(260)
+    m:SetPoint("TOPRIGHT", f, "TOPLEFT", -4, 0)
+    T:Skin(m, "bg", "accent")
+    m:EnableMouse(true)
+    m.rows = {}
+    f.zoneMenu = m
+  end
+  if m:IsShown() then m:Hide() return end
+  for _, r in ipairs(m.rows) do r:Hide() end
+  local items = {}
+  local here = C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
+  local hz = CM.SmartGuide.ZoneOf(here)
+  if hz then
+    local info = C_Map.GetMapInfo(hz)
+    items[#items + 1] = { label = "Lock to where I am: " .. (info and info.name or "?"), id = hz }
+  end
+  for i, z in ipairs(CM.SmartGuide:ZoneChoices()) do
+    if i > 10 then break end
+    items[#items + 1] = { label = string.format("%s   |cff808080%d quests, level %d-%d|r", z.name, z.count, z.lo, z.hi), id = z.id }
+  end
+  items[#items + 1] = { label = "Unlock (quests near me)", id = false }
+  for i, it in ipairs(items) do
+    local r = m.rows[i]
+    if not r then
+      r = T:Button(m, "", 12)
+      r:SetHeight(22)
+      r:SetPoint("TOPLEFT", 6, -6 - (i - 1) * 24); r:SetPoint("TOPRIGHT", -6, -6 - (i - 1) * 24)
+      m.rows[i] = r
+    end
+    r.text:SetText(it.label)
+    r:SetScript("OnClick", function() m:Hide(); CM.SmartGuide:LockZone(it.id or nil) end)
+    r:Show()
+  end
+  m:SetHeight(#items * 24 + 12)
+  m:Show()
 end
 
 function GW:Show()

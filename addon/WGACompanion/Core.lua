@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.18.1"
+CM.version = "0.19.0"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -282,6 +282,17 @@ SlashCmdList.WGACOMPANION = function(input)
       st.autoQuest = st.autoQuest == false
       CM:Print("Auto accept and turn in %s. Hold Shift while talking to an NPC to skip it once.", st.autoQuest and "on" or "off")
     end
+  elseif cmd == "zone" then
+    if rest == "off" then CM.SmartGuide:LockZone(nil)
+    elseif rest == "" or rest == "here" then
+      local z = CM.SmartGuide.ZoneOf(C_Map.GetBestMapForUnit("player"))
+      if z then CM.SmartGuide:LockZone(z) else CM:Print("Couldn't tell which zone you're in.") end
+    else
+      local found
+      for _, z in ipairs(CM.SmartGuide:ZoneChoices()) do if z.name:lower() == rest:lower() then found = z.id end end
+      if not found and CM.Visuals then found = CM.Visuals:MapID(rest) end
+      if found then CM.SmartGuide:LockZone(found) else CM:Print("No zone called '%s' found.", rest) end
+    end
   elseif cmd == "guide" and (rest == "efficient" or rest == "fast") then
     CM.SmartGuide:SetStyle("efficient")
   elseif cmd == "guide" and (rest == "all" or rest == "completionist") then
@@ -335,6 +346,7 @@ SlashCmdList.WGACOMPANION = function(input)
     CM:Print("  /wga guide [name]  - show/hide the guide window (Smart Guide or a step guide), or load one")
     CM:Print("  /wga guide smart  - switch the guide window to the Smart Guide")
     CM:Print("  /wga auto | auto rewards | auto upgrade <n>  - auto accept/turn in, reward picking (hold Shift to skip)")
+    CM:Print("  /wga zone [here|<zone name>|off]  - lock the Smart Guide to one zone")
     CM:Print("  /wga guide efficient | all  - Smart Guide picks only quests worth the time, or every quest")
     CM:Print("  /wga companion [on|off|voice|voices|voice <n>|rate <n>|name <name>|look|say]  - your talking guide buddy")
     CM:Print("  /wga guides | reset | arrow  - list guides, restart guide, toggle arrow")

@@ -210,6 +210,8 @@ function N:Location(id)
     end
     local q = CM.QuestDB and CM.QuestDB:Get(id)
     if q and q.t then return q.t[1], q.t[2] / 100, q.t[3] / 100, "turn in" end
+    local learned = CM.db.global.turnins and CM.db.global.turnins[id]
+    if learned then return learned[1], learned[2], learned[3], "learned turn-in", learned[4] end
   else
     local idx = nextObjective(id)
     if QD:Has() and idx then
@@ -227,6 +229,19 @@ function N:Location(id)
   if QL.GetNextWaypoint then
     local m, x, y = QL.GetNextWaypoint(id)
     if m and x and y then return m, x, y, "waypoint" end
+  end
+  -- quests our database doesn't know (new Forever quests): ask the game which map it belongs on
+  if GetQuestUiMapID then
+    local ok, qm = pcall(GetQuestUiMapID, id)
+    if ok and qm and qm > 0 and qm ~= pm then
+      for _, info in ipairs(QL.GetQuestsOnMap and QL.GetQuestsOnMap(qm) or {}) do
+        if info.questID == id and info.x and info.y then return qm, info.x, info.y, "quest map" end
+      end
+      if QL.GetNextWaypointForMap then
+        local x, y = QL.GetNextWaypointForMap(id, qm)
+        if x and y then return qm, x, y, "waypoint" end
+      end
+    end
   end
 end
 
@@ -634,3 +649,12 @@ function N:Command(arg)
     CM:Print("/wga quest [arrow | pins | minimap | available | marks | size <n> | why]")
   end
 end
+
+-- Remember where you hand quests in (useful for new Forever quests our database doesn't have)
+CM:On("QUEST_COMPLETE", function()
+  local id = GetQuestID and GetQuestID()
+  local m, x, y = here()
+  if not id or id == 0 or not (m and x) then return end
+  CM.db.global.turnins = CM.db.global.turnins or {}
+  CM.db.global.turnins[id] = { m, x, y, UnitName and UnitName("npc") or nil }
+end)

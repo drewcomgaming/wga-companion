@@ -265,10 +265,10 @@ function GW:Build()
   end
 
   -- footer for step guides
-  f.prev = T:Button(f, "< Back", 11, function() CM.Guides:Skip(-1); GW:Refresh() end)
+  f.prev = T:Button(f, "< Back", 11, function() GW:Back() end)
   f.prev:SetSize(70, 20); f.prev.text:ClearAllPoints(); f.prev.text:SetPoint("CENTER")
   T:Skin(f.prev, "panel", "border")
-  f.skip = T:Button(f, "Skip >", 11, function() CM.Guides:Skip(1); GW:Refresh() end)
+  f.skip = T:Button(f, "Skip >", 11, function() GW:Skip() end)
   f.skip:SetSize(70, 20); f.skip.text:ClearAllPoints(); f.skip.text:SetPoint("CENTER")
   T:Skin(f.skip, "panel", "border")
 
@@ -289,9 +289,45 @@ local function setIcon(tex, kind)
   end
 end
 
+-- Smart Guide skips: a list of step keys you skipped, newest last. Back brings the last one back.
+local function stepKey(s) return s and ((s.kind or "") .. ":" .. tostring(s.quest or s.title or "")) end
+local function skipped()
+  local g = charDB()
+  g.smartSkipped = g.smartSkipped or {}
+  return g.smartSkipped
+end
+
+function GW:Skip()
+  if self:Mode() == "guide" then CM.Guides:Skip(1) return self:Refresh() end
+  local key = stepKey(self.current)
+  if not key then return end
+  local list = skipped()
+  list[#list + 1] = key
+  while #list > 40 do table.remove(list, 1) end
+  self.focusQuest = nil
+  self:Refresh()
+end
+
+function GW:Back()
+  if self:Mode() == "guide" then CM.Guides:Skip(-1) return self:Refresh() end
+  local list = skipped()
+  local key = table.remove(list)
+  if not key then CM:Print("Nothing skipped to go back to.") return end
+  local kind, quest = key:match("^(.-):(.*)$")
+  self.focusQuest, self.focusKind = tonumber(quest), kind
+  self:Refresh()
+end
+
 function GW:Steps()
   if self:Mode() == "guide" then return fromGuide() end
   local route = CM.SmartGuide:Route()
+  local skip = {}
+  for _, k in ipairs(skipped()) do skip[k] = true end
+  if next(skip) then
+    local kept = {}
+    for _, s in ipairs(route) do if not skip[stepKey(s)] then kept[#kept + 1] = s end end
+    route = kept
+  end
   local accepts, open, ready = 0, 0, 0
   for _, s in ipairs(route) do
     if s.kind == "accept" then accepts = accepts + 1 elseif s.kind == "turnin" then ready = ready + 1 else open = open + 1 end
@@ -402,8 +438,9 @@ function GW:Refresh()
       r:Hide()
     end
   end
-  local guideMode = mode == "guide"
+  local guideMode = true   -- Back / Skip in both modes
   f.prev:SetShown(guideMode); f.skip:SetShown(guideMode)
+  if mode == "smart" then f.prev:SetAlpha(#skipped() > 0 and 1 or 0.4) else f.prev:SetAlpha(1) end
   if guideMode then
     f.prev:ClearAllPoints(); f.prev:SetPoint("TOPLEFT", 8, y - 4)
     f.skip:ClearAllPoints(); f.skip:SetPoint("TOPRIGHT", -8, y - 4)
@@ -441,7 +478,12 @@ for _, e in ipairs({ "QUEST_LOG_UPDATE", "QUEST_ACCEPTED", "QUEST_TURNED_IN", "Q
   "PLAYER_XP_UPDATE", "ZONE_CHANGED_NEW_AREA", "BAG_UPDATE_DELAYED" }) do
   CM:On(e, queue)
 end
-CM:On("QUEST_TURNED_IN", function(_, id) if id and id == GW.focusQuest then GW.focusQuest = nil end end)
+CM:On("QUEST_TURNED_IN", function(_, id)
+  if id and id == GW.focusQuest then GW.focusQuest = nil end
+  -- a quest that's done can't be skipped any more
+  local list = skipped()
+  for i = #list, 1, -1 do if list[i]:match(":(.*)$") == tostring(id) then table.remove(list, i) end end
+end)
 
 function GW:OnLogin()
   if CM.db.settings.guideWindow == false then return end

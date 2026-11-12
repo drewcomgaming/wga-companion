@@ -153,6 +153,30 @@ local function guideWants(id)
 end
 Rw.Wants = guideWants
 
+-- The next part of a chain you just handed in, offered by the same NPC: the guide hasn't had time
+-- to add it to the route yet, but it obviously wants it (unless efficient mode thinks it's poor value).
+local lastTurnIn
+CM:On("QUEST_TURNED_IN", function(_, id)
+  lastTurnIn = { id = id, npc = UnitName and UnitName("npc"), t = GetTime() }
+end)
+local function followUp(id)
+  local QD = CM.QData
+  if not (id and lastTurnIn and QD and QD:Has()) then return false end
+  if GetTime() - lastTurnIn.t > 60 then return false end
+  local npc = UnitName and UnitName("npc")
+  if lastTurnIn.npc and npc and npc ~= lastTurnIn.npc then return false end
+  local prev, q = QD:Quest(lastTurnIn.id), QD:Quest(id)
+  local chained = prev and prev[12] == id
+  for _, p in ipairs(q and q[9] or {}) do if p == lastTurnIn.id then chained = true end end
+  for _, p in ipairs(q and q[10] or {}) do if p == lastTurnIn.id then chained = true end end
+  if not chained then return false end
+  local SG = CM.SmartGuide
+  if SG and SG:Style() == "efficient" and QD:NotWorthIt(id, UnitLevel("player") or 1) then return false end
+  return true
+end
+Rw.FollowUp = followUp
+local function wanted(id) return guideWants(id) or followUp(id) end
+
 local function skip(repeatable, frequency)
   return repeatable or (frequency and frequency > 0)
 end
@@ -168,7 +192,7 @@ CM:On("GOSSIP_SHOW", function()
     if q.isComplete and q.questID and guideWants(q.questID) then C_GossipInfo.SelectActiveQuest(q.questID) return end
   end
   for _, q in ipairs(C_GossipInfo.GetAvailableQuests() or {}) do
-    if q.questID and not skip(q.repeatable, q.frequency) and guideWants(q.questID) then
+    if q.questID and not skip(q.repeatable, q.frequency) and wanted(q.questID) then
       C_GossipInfo.SelectAvailableQuest(q.questID) return
     end
   end
@@ -183,7 +207,7 @@ CM:On("QUEST_GREETING", function()
   end
   for i = 1, (GetNumAvailableQuests() or 0) do
     local _, frequency, repeatable, _, id = GetAvailableQuestInfo(i)
-    if not skip(repeatable, frequency) and guideWants(id) then SelectAvailableQuest(i) return end
+    if not skip(repeatable, frequency) and wanted(id) then SelectAvailableQuest(i) return end
   end
 end)
 
@@ -192,8 +216,14 @@ CM:On("QUEST_DETAIL", function()
   local id = GetQuestID()
   if QuestGetAutoAccept and QuestGetAutoAccept() then
     AcknowledgeAutoAcceptQuest()   -- the game already accepted it
-  elseif guideWants(id) then
+  elseif wanted(id) then
     AcceptQuest()
+  else
+    -- the guide may not have caught up with a turn-in a moment ago: look again shortly
+    C_Timer.After(0.6, function()
+      if CM.GuideWindow and CM.GuideWindow.Refresh then pcall(CM.GuideWindow.Refresh, CM.GuideWindow) end
+      if autoQuest() and GetQuestID() == id and QuestFrame and QuestFrame:IsShown() and wanted(id) then AcceptQuest() end
+    end)
   end
 end)
 

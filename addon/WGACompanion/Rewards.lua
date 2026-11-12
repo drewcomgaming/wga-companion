@@ -134,20 +134,22 @@ function Rw:Choose()
   return nil
 end
 
--- Which quests to take --------------------------------------------------------------------------
--- The guide's own quests always; otherwise what the Smart Guide style allows.
+-- Which quests to handle ---------------------------------------------------------------------------
+-- Only the guide's current step, plus other guide steps at that same NPC (so a quest giver with
+-- three hand-ins gets them all done in one visit). Every other NPC is left alone.
 local function guideWants(id)
   if not id or id == 0 then return false end
   local GW = CM.GuideWindow
-  if GW and GW.Steps then
-    local ok, steps = pcall(GW.Steps, GW)
-    for _, s in ipairs(ok and steps or {}) do if s.quest == id then return true end end
-    if GW:Mode() == "guide" then return false end
+  local cur = GW and GW.current
+  if not cur then return false end
+  if cur.quest == id then return true end
+  local npc = UnitName and UnitName("npc")
+  if not npc or not cur.npc or npc ~= cur.npc then return false end
+  local ok, steps = pcall(GW.Steps, GW)
+  for _, s in ipairs(ok and steps or {}) do
+    if s.quest == id and s.npc == npc and (s.kind == "accept" or s.kind == "turnin") then return true end
   end
-  local QD = CM.QData
-  if CM.SmartGuide and CM.SmartGuide:Style() == "completionist" then return true end
-  if QD and QD:Has() and QD:Quest(id) then return not QD:NotWorthIt(id, UnitLevel("player") or 1) end
-  return true   -- not in our database (new Forever quest): take it
+  return false
 end
 Rw.Wants = guideWants
 
@@ -163,7 +165,7 @@ end
 CM:On("GOSSIP_SHOW", function()
   if not autoQuest() or not C_GossipInfo then return end
   for _, q in ipairs(C_GossipInfo.GetActiveQuests() or {}) do
-    if q.isComplete and q.questID then C_GossipInfo.SelectActiveQuest(q.questID) return end
+    if q.isComplete and q.questID and guideWants(q.questID) then C_GossipInfo.SelectActiveQuest(q.questID) return end
   end
   for _, q in ipairs(C_GossipInfo.GetAvailableQuests() or {}) do
     if q.questID and not skip(q.repeatable, q.frequency) and guideWants(q.questID) then
@@ -177,7 +179,7 @@ CM:On("QUEST_GREETING", function()
   if not autoQuest() then return end
   for i = 1, (GetNumActiveQuests() or 0) do
     local _, complete = GetActiveTitle(i)
-    if complete then SelectActiveQuest(i) return end
+    if complete and guideWants(GetActiveQuestID and GetActiveQuestID(i)) then SelectActiveQuest(i) return end
   end
   for i = 1, (GetNumAvailableQuests() or 0) do
     local _, frequency, repeatable, _, id = GetAvailableQuestInfo(i)
@@ -189,18 +191,19 @@ CM:On("QUEST_DETAIL", function()
   if not autoQuest() then return end
   local id = GetQuestID()
   if QuestGetAutoAccept and QuestGetAutoAccept() then
-    AcknowledgeAutoAcceptQuest()
+    AcknowledgeAutoAcceptQuest()   -- the game already accepted it
   elseif guideWants(id) then
     AcceptQuest()
   end
 end)
 
 CM:On("QUEST_PROGRESS", function()
-  if autoQuest() and IsQuestCompletable() then CompleteQuest() end
+  if autoQuest() and IsQuestCompletable() and guideWants(GetQuestID()) then CompleteQuest() end
 end)
 
 -- Rewards
 CM:On("QUEST_COMPLETE", function()
+  if not guideWants(GetQuestID()) then return end
   local n = GetNumQuestChoices() or 0
   local pick, why = Rw:Choose()
   if n <= 1 then

@@ -62,7 +62,7 @@ Dungeon quests are tagged "dungeon" and can be switched off in Settings.
 
 ## Auto accept, turn in and rewards
 
-Like Zygor: talk to a quest giver and WGA Companion picks the quest the guide wants, accepts it, and hands in finished quests. Quests the Efficient style would skip (cloth donations, battleground and off-level quests) are left alone; Completionist takes everything except repeatables.
+Like Zygor: talk to the NPC for the guide's current step and WGA Companion accepts or hands in that quest, plus any other guide steps at the same NPC. Every other NPC is left alone.
 
 For reward choices it takes a **real upgrade** when one is on offer: gear your class should wear (armor type, weapon skills, the right stats) that is at least 5 item levels better than what you have in that slot, or fills an empty slot. Otherwise it takes the reward **worth the most gold** (auction price after cut, or vendor price).
 

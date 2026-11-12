@@ -347,8 +347,10 @@ function GW:Steps()
     if s.kind == "accept" then accepts = accepts + 1 elseif s.kind == "turnin" then ready = ready + 1 else open = open + 1 end
   end
   local style = CM.SmartGuide:Style() == "efficient" and "Efficient" or "Completionist"
-  local _, zname = CM.SmartGuide:LockedZone()
-  if zname then style = style .. " · " .. zname end
+  local _, zname, auto = CM.SmartGuide:LockedZone()
+  if zname then style = style .. " · " .. (auto and "Path: " or "") .. zname end
+  local tip, nxt = CM.SmartGuide:MoveOnAdvice()
+  if nxt then style = style .. " · |cffffd100move on to " .. nxt .. "|r" end
   return route, string.format("%s   ·   %d to turn in, %d open, %d new", style, ready, open, accepts)
 end
 
@@ -477,7 +479,7 @@ function GW:ZoneMenu()
   if not m then
     m = CreateFrame("Frame", nil, f)
     m:SetFrameStrata("DIALOG")
-    m:SetWidth(260)
+    m:SetWidth(320)
     m:SetPoint("TOPRIGHT", f, "TOPLEFT", -4, 0)
     T:Skin(m, "bg", "accent")
     m:EnableMouse(true)
@@ -487,15 +489,30 @@ function GW:ZoneMenu()
   if m:IsShown() then m:Hide() return end
   for _, r in ipairs(m.rows) do r:Hide() end
   local items = {}
+  local SG = CM.SmartGuide
+  local level = UnitLevel("player") or 1
+  local cont = SG:PathContinent()
+  local rec = SG:RecommendedZone()
+  local counts = {}
+  for _, z in ipairs(SG:ZoneChoices()) do counts[z.name] = z.count end
+  items[#items + 1] = { label = string.format("|cff66ff66Follow the levelling path|r   |cff808080now %s|r", rec or "?"),
+    fn = function() SG:FollowPath() end }
+  local other = cont == "Kalimdor" and "Eastern Kingdoms" or "Kalimdor"
+  items[#items + 1] = { label = "Path: " .. cont .. "   |cff808080(click for " .. other .. ")|r",
+    fn = function() SG:SetPathContinent(other) end, keepOpen = true }
   local here = C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
-  local hz = CM.SmartGuide.ZoneOf(here)
+  local hz = SG.ZoneOf(here)
   if hz then
     local info = C_Map.GetMapInfo(hz)
     items[#items + 1] = { label = "Lock to where I am: " .. (info and info.name or "?"), id = hz }
   end
-  for i, z in ipairs(CM.SmartGuide:ZoneChoices()) do
-    if i > 10 then break end
-    items[#items + 1] = { label = string.format("%s   |cff808080%d quests, level %d-%d|r", z.name, z.count, z.lo, z.hi), id = z.id }
+  for _, z in ipairs(SG:Path()) do
+    if z[3] >= level - 2 and z[2] <= level + 8 then
+      local col = (z[1] == rec) and "|cffffd100" or (level > z[3] and "|cff808080" or (level < z[2] and "|cffff8040" or "|cffffffff"))
+      local n = counts[z[1]]
+      items[#items + 1] = { label = string.format("%s%s|r   |cff808080%d-%d%s|r", col, z[1], z[2], z[3],
+        n and string.format(", %d quests", n) or ""), name = z[1] }
+    end
   end
   items[#items + 1] = { label = "Unlock (quests near me)", id = false }
   for i, it in ipairs(items) do
@@ -507,7 +524,15 @@ function GW:ZoneMenu()
       m.rows[i] = r
     end
     r.text:SetText(it.label)
-    r:SetScript("OnClick", function() m:Hide(); CM.SmartGuide:LockZone(it.id or nil) end)
+    r:SetScript("OnClick", function()
+      if it.keepOpen then it.fn(); m:Hide(); GW:ZoneMenu() return end
+      m:Hide()
+      if it.fn then it.fn()
+      elseif it.name then
+        local id = CM.Visuals and CM.Visuals:MapID(it.name)
+        if id then CM.SmartGuide:LockZone(id) else CM:Print("Couldn't find the map for %s.", it.name) end
+      else CM.SmartGuide:LockZone(it.id or nil) end
+    end)
     r:Show()
   end
   m:SetHeight(#items * 24 + 12)

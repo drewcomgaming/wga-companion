@@ -45,10 +45,137 @@ end
 SG.ZoneOf = zoneOf
 
 local function lockDB() return WGACompanionCharDB end
+-- Levelling path ----------------------------------------------------------------------------------
+-- The usual zone order per faction and continent: { zone name, min level, max level }.
+local PATHS = {
+  Alliance = {
+    ["Eastern Kingdoms"] = {
+      { "Elwynn Forest", 1, 10 }, { "Dun Morogh", 1, 10 }, { "Westfall", 10, 20 }, { "Loch Modan", 10, 20 },
+      { "Redridge Mountains", 15, 25 }, { "Duskwood", 18, 30 }, { "Wetlands", 20, 30 },
+      { "Hillsbrad Foothills", 20, 30 }, { "Arathi Highlands", 30, 40 }, { "Alterac Mountains", 30, 40 },
+      { "Stranglethorn Vale", 30, 45 }, { "Badlands", 35, 45 }, { "Swamp of Sorrows", 35, 45 },
+      { "The Riverglades", 35, 45 }, { "The Hinterlands", 40, 50 }, { "Searing Gorge", 43, 50 },
+      { "Blasted Lands", 45, 55 }, { "Burning Steppes", 50, 58 }, { "Western Plaguelands", 51, 58 },
+      { "Eastern Plaguelands", 53, 60 },
+    },
+    Kalimdor = {
+      { "Teldrassil", 1, 10 }, { "Darkshore", 10, 20 }, { "Ashenvale", 18, 30 }, { "Stonetalon Mountains", 15, 27 },
+      { "Desolace", 30, 40 }, { "Dustwallow Marsh", 35, 45 }, { "Feralas", 40, 50 }, { "Tanaris", 40, 50 },
+      { "Azshara", 45, 55 }, { "Un'Goro Crater", 48, 55 }, { "Felwood", 48, 55 }, { "Winterspring", 55, 60 },
+      { "Silithus", 55, 60 },
+    },
+  },
+  Horde = {
+    ["Eastern Kingdoms"] = {
+      { "Tirisfal Glades", 1, 10 }, { "Silverpine Forest", 10, 20 }, { "Hillsbrad Foothills", 20, 30 },
+      { "Arathi Highlands", 30, 40 }, { "Alterac Mountains", 30, 40 }, { "Stranglethorn Vale", 30, 45 },
+      { "Badlands", 35, 45 }, { "Swamp of Sorrows", 35, 45 }, { "The Riverglades", 35, 45 },
+      { "The Hinterlands", 40, 50 }, { "Searing Gorge", 43, 50 }, { "Burning Steppes", 50, 58 },
+      { "Western Plaguelands", 51, 58 }, { "Eastern Plaguelands", 53, 60 },
+    },
+    Kalimdor = {
+      { "Durotar", 1, 10 }, { "Mulgore", 1, 10 }, { "The Barrens", 10, 25 }, { "Stonetalon Mountains", 15, 27 },
+      { "Ashenvale", 18, 30 }, { "Thousand Needles", 25, 35 }, { "Desolace", 30, 40 }, { "Dustwallow Marsh", 35, 45 },
+      { "Feralas", 40, 50 }, { "Tanaris", 40, 50 }, { "Azshara", 45, 55 }, { "Un'Goro Crater", 48, 55 },
+      { "Felwood", 48, 55 }, { "Winterspring", 55, 60 }, { "Silithus", 55, 60 },
+    },
+  },
+}
+SG.PATHS = PATHS
+-- Where each race starts
+local START = {
+  Human = { "Eastern Kingdoms", "Elwynn Forest" }, Dwarf = { "Eastern Kingdoms", "Dun Morogh" },
+  Gnome = { "Eastern Kingdoms", "Dun Morogh" }, NightElf = { "Kalimdor", "Teldrassil" },
+  Orc = { "Kalimdor", "Durotar" }, Troll = { "Kalimdor", "Durotar" }, Tauren = { "Kalimdor", "Mulgore" },
+  Scourge = { "Eastern Kingdoms", "Tirisfal Glades" },
+}
+
+local function faction() return (UnitFactionGroup and UnitFactionGroup("player")) == "Horde" and "Horde" or "Alliance" end
+
+function SG:PathContinent()
+  local p = lockDB().pathContinent
+  if p then return p end
+  local _, race = UnitRace and UnitRace("player")
+  return START[race or ""] and START[race][1] or "Eastern Kingdoms"
+end
+function SG:SetPathContinent(c)
+  lockDB().pathContinent = c
+  CM:Print("Levelling path: %s.", c)
+  if CM.GuideWindow then CM.GuideWindow:Refresh() end
+end
+function SG:Path() return PATHS[faction()][self:PathContinent()] or {} end
+
+local function rangeOf(name)
+  for _, cont in pairs(PATHS[faction()]) do
+    for _, z in ipairs(cont) do if z[1] == name then return z[2], z[3] end end
+  end
+end
+SG.ZoneRange = rangeOf
+
+-- The zone to level in now: your race's start zone early on, then the first zone on the path that
+-- fits your level with room to grow (not within 2 levels of its top).
+function SG:RecommendedZone(level)
+  level = level or UnitLevel("player") or 1
+  local path = self:Path()
+  local _, race = UnitRace and UnitRace("player")
+  if level < 10 and START[race or ""] and START[race][1] == self:PathContinent() then
+    local name = START[race][2]
+    return name, rangeOf(name)
+  end
+  for _, z in ipairs(path) do
+    if level >= z[2] and level <= z[3] - 2 and z[2] > 1 then return z[1], z[2], z[3] end
+  end
+  for _, z in ipairs(path) do
+    if level >= z[2] and level <= z[3] then return z[1], z[2], z[3] end
+  end
+  local last = path[#path]
+  return last and last[1], last and last[2], last and last[3]
+end
+
 function SG:LockedZone()
   local l = lockDB().zoneLock
-  return l and l.id, l and l.name
+  if l and l.auto then
+    local name = self:RecommendedZone()
+    local id = name and CM.Visuals and CM.Visuals:MapID(name)
+    if id then return id, name, true end
+    return nil
+  end
+  return l and l.id, l and l.name, false
 end
+
+function SG:FollowPath()
+  lockDB().zoneLock = { auto = true }
+  local name, lo, hi = self:RecommendedZone()
+  CM:Print("Smart Guide follows the levelling path (%s). Now: %s (%d-%d).", self:PathContinent(), name or "?", lo or 0, hi or 0)
+  if CM.Companion then CM.Companion.lastKey = nil end
+  if CM.GuideWindow then CM.GuideWindow:Refresh() end
+end
+
+-- Locked to a zone you've outgrown? Suggest the next one (once per level).
+function SG:MoveOnAdvice()
+  local _, name, auto = self:LockedZone()
+  if not name or auto then return nil end
+  local _, hi = rangeOf(name)
+  local level = UnitLevel("player") or 1
+  if hi and level >= hi then
+    local nxt, lo2, hi2 = self:RecommendedZone(level)
+    if nxt and nxt ~= name then return string.format("You've outlevelled %s. Next up: %s (%d-%d).", name, nxt, lo2, hi2), nxt end
+  end
+end
+CM:On("PLAYER_LEVEL_UP", function()
+  C_Timer.After(4, function()
+    local tip = SG:MoveOnAdvice()
+    local auto = lockDB().zoneLock and lockDB().zoneLock.auto
+    if tip and CM.Companion then CM.Companion:Remark(tip .. " Click Z on the guide to switch.") end
+    if auto and CM.Companion then
+      local name = SG:RecommendedZone()
+      if name and name ~= SG.lastPathZone then
+        if SG.lastPathZone then CM.Companion:Remark("We've outgrown " .. SG.lastPathZone .. ". Time to head to " .. name .. "!") end
+      end
+    end
+    SG.lastPathZone = SG:RecommendedZone()
+  end)
+end)
 function SG:LockZone(id)
   if not id then
     lockDB().zoneLock = nil

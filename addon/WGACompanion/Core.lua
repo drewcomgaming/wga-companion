@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.19.0"
+CM.version = "0.20.0"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -284,6 +284,9 @@ SlashCmdList.WGACOMPANION = function(input)
     end
   elseif cmd == "zone" then
     if rest == "off" then CM.SmartGuide:LockZone(nil)
+    elseif rest == "path" or rest == "auto" then CM.SmartGuide:FollowPath()
+    elseif rest == "kalimdor" then CM.SmartGuide:SetPathContinent("Kalimdor")
+    elseif rest == "eastern" or rest == "ek" or rest == "eastern kingdoms" then CM.SmartGuide:SetPathContinent("Eastern Kingdoms")
     elseif rest == "" or rest == "here" then
       local z = CM.SmartGuide.ZoneOf(C_Map.GetBestMapForUnit("player"))
       if z then CM.SmartGuide:LockZone(z) else CM:Print("Couldn't tell which zone you're in.") end
@@ -347,6 +350,7 @@ SlashCmdList.WGACOMPANION = function(input)
     CM:Print("  /wga guide smart  - switch the guide window to the Smart Guide")
     CM:Print("  /wga auto | auto rewards | auto upgrade <n>  - auto accept/turn in, reward picking (hold Shift to skip)")
     CM:Print("  /wga zone [here|<zone name>|off]  - lock the Smart Guide to one zone")
+    CM:Print("  /wga zone path | kalimdor | eastern  - follow the levelling path, pick its continent")
     CM:Print("  /wga guide efficient | all  - Smart Guide picks only quests worth the time, or every quest")
     CM:Print("  /wga companion [on|off|voice|voices|voice <n>|rate <n>|name <name>|look|say]  - your talking guide buddy")
     CM:Print("  /wga guides | reset | arrow  - list guides, restart guide, toggle arrow")

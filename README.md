@@ -93,6 +93,10 @@ The current step shows a 3D model of the NPC or mob, what to do ("Talk to", "Kil
 - Click a step under "Coming up" to make it the current step.
 - The "-" button shrinks the window to just the current step.
 
+### Levelling path
+
+Click the Z button in the guide window header and choose **Follow the levelling path**. Below level 10 the guide keeps you in your race's starting zone (Elwynn Forest, Dun Morogh, Teldrassil, Durotar, Mulgore, Tirisfal Glades and so on). After that it follows your faction's zone order on the continent you pick (Eastern Kingdoms or Kalimdor, click "Path" in the menu to switch), for example Elwynn Forest, Westfall, Redridge Mountains, Duskwood. Once you outlevel a zone the subtitle and Whirl tell you where to move on to, and in path mode the guide switches zones for you. `/wga zone path`, `/wga zone eastern` and `/wga zone kalimdor` do the same from chat.
+
 ## Dungeon journal
 
 The hub's **Dungeons** page shows every dungeon as a card with its art, level range and number of quests. You can search by dungeon or boss name, and the button at top right switches between dungeons and raids. Open a dungeon to see three tabs:

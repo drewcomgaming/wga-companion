@@ -10,7 +10,7 @@ local PAGE = { -- banner text for tabs without a list
   Flips = { "Vendor flips", "Items vendors sell for less than the auction house pays" },
   Rares = { "Rares & treasures", "Alerts, recent sightings and the loot WGA has seen them drop" },
 }
-local WIDTH, HEIGHT, SIDE_W, LIST_W = 900, 580, 168, 210
+local WIDTH, HEIGHT, SIDE_W, LIST_W = 900, 620, 168, 210
 
 UI.current = "Guides"
 UI.selection = {}
@@ -492,6 +492,10 @@ function UI:BuildSettings(body)
       { "Auto accept & turn in", "autoQuest" },
       { "Auto pick quest rewards", "autoReward" },
     } },
+    { "Maps", {
+      { "Route line on the world map", "routeLine", function() if CM.RouteMap then CM.RouteMap:Draw() end end },
+      { "Herb and ore nodes on the maps", "gatherPins", function() CM.Gather:Redraw() end },
+    }, col = 1 },
     { "Economy", {
       { "Prices in tooltips", "tooltip" },
       { "Auto-sell grey items", "autoSellJunk" },
@@ -499,20 +503,14 @@ function UI:BuildSettings(body)
       { "AH shopping lists", "shopping", function(v) if CM.Shopping.frame then CM.Shopping.frame:SetShown(v) end end },
       { "Minimap button", "minimapButton", function(v) CM.MinimapButton:SetShown(v) end },
     } },
-    { "Guide & companion", {
+    { "Guide", {
       { "Guide window", "guideWindow", function(v) if v then CM.GuideWindow:Show() else CM.GuideWindow:Hide() end end },
       { "Guide suggests new quests", "smartAccept", function() CM.GuideWindow:Refresh() end },
       { "Efficient levelling only", "guideEfficient", function(v) CM.SmartGuide:SetStyle(v and "efficient" or "completionist") end },
       { "Include dungeon quests", "guideDungeons", function() CM.GuideWindow:Refresh() end },
-      { "Talking companion", "companion", function() CM.Companion.lastKey = nil; CM.GuideWindow:Refresh() end },
-      { "Companion reads aloud", "companionVoiceOn", function(v) CM.Companion:Paint(); if not v then pcall(C_VoiceChat.StopSpeakingText) end end },
       { "Grab nearby flight paths", "grabFlights", function() CM.GuideWindow:Refresh() end },
-      { "Route line on the world map", "routeLine", function() if CM.RouteMap then CM.RouteMap:Draw() end end },
+      { "Quest item button by the arrow", "questItemButton", function() CM.QuestItem:Update() end },
       { "New trainer skills card on level up", "trainerCard" },
-      { "Whirl's level-up advice", "companionAdvice" },
-      { "Whirl says if I'm off course", "companionWatch" },
-      { "I play in groups", "groupPlay" },
-      { "I'm a veteran player", "veteranPlayer" },
     }, col = 2 },
     { "Rares & treasures", {
       { "Rare alerts", "rareAlerts" },
@@ -523,6 +521,14 @@ function UI:BuildSettings(body)
       { "Rares on the world map", "rareMapPins", function() CM.RareMap:DrawMap() end },
       { "Hide rares you're done with", "rareHideDone", function() CM.RareMap:DrawMap() end },
     } },
+    { "Whirl", {
+      { "Talking companion", "companion", function() CM.Companion.lastKey = nil; CM.GuideWindow:Refresh() end },
+      { "Companion reads aloud", "companionVoiceOn", function(v) CM.Companion:Paint(); if not v then pcall(C_VoiceChat.StopSpeakingText) end end },
+      { "Whirl's level-up advice", "companionAdvice" },
+      { "Whirl says if I'm off course", "companionWatch" },
+      { "I play in groups", "groupPlay" },
+      { "I'm a veteran player", "veteranPlayer" },
+    }, col = 3 },
   }
   -- a section with col = n stacks under the previous section in that column
   local colY, ci = {}, 0
@@ -538,7 +544,7 @@ function UI:BuildSettings(body)
       local tg = T:Toggle(page, row[1], get, set)
       tg:SetPoint("TOPLEFT", x, y)
       tg:SetWidth(224)
-      y = y - 24
+      y = y - 22
     end
     colY[c] = y
   end

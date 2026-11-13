@@ -2,7 +2,7 @@
 local ADDON, CM = ...
 _G.WGACompanion = CM
 
-CM.version = "0.23.1"
+CM.version = "0.24.0"
 CM.modules = {}
 CM.Data = CM.Data or {}
 
@@ -56,7 +56,9 @@ local defaults = {
     veteranPlayer = false,    -- veteran: short advice; otherwise Whirl adds beginner tips
     grabFlights = true,       -- Smart Guide: add unlearned flight paths close by
     routeLine = true,         -- dotted Smart Guide route on the world map
-    trainerCard = true,       -- "new skills at your trainer" card on level up
+    trainerCard = true,
+    questItemButton = true,   -- button next to the arrow for the current step's quest item
+    gatherPins = true,        -- herb and ore nodes you've gathered on the world map and minimap       -- "new skills at your trainer" card on level up
   },
 }
 
@@ -262,6 +264,10 @@ SlashCmdList.WGACOMPANION = function(input)
     CM:Print("Auto-sell grey items %s.", CM.db.settings.autoSellJunk and "on" or "off")
   elseif cmd == "companion" or cmd == "buddy" then
     CM.Companion:Command(rest or "")
+  elseif cmd == "gather" or cmd == "nodes" then
+    CM.Gather:Command(rest)
+  elseif cmd == "itembutton" then
+    CM.QuestItem:ResetPosition(); CM:Print("Quest item button moved back next to the arrow.")
   elseif cmd == "trainer" or cmd == "skills" then
     CM.Trainer:Toggle()
   elseif cmd == "advice" or cmd == "whirl" then
@@ -369,6 +375,8 @@ SlashCmdList.WGACOMPANION = function(input)
     CM:Print("  /wga companion [on|off|voice|voices|voice <n>|rate <n>|name <name>|look|say]  - your talking guide buddy")
     CM:Print("  /wga guides | reset | arrow  - list guides, restart guide, toggle arrow")
     CM:Print("  /wga trainer  - new spells at your class trainer, their cost, and an arrow there")
+    CM:Print("  /wga gather [herb|ore|stop|pins|clear]  - gathering run around this zone's known nodes")
+    CM:Print("  /wga itembutton  - put the quest item button back next to the arrow")
     CM:Print("  /wga quest [arrow|pins|minimap|available|marks|size|why]  - quest arrow, map icons and mob marks")
     CM:Print("  /wga record start|stop|export  - record your own route as a guide")
     CM:Print("  /wga level | dungeon | prof | gold  - reference pages")

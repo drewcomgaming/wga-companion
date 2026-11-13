@@ -134,6 +134,14 @@ Each visit to your class trainer teaches WGA what they sell and what you've alre
 
 The Smart Guide's next stops are drawn on the world map as a dotted line from you, with a numbered marker on each stop. Hover a marker for what to do there, click it to point the arrow. Turn it off under Settings, "Route line on the world map".
 
+### Quest item button and key bindings
+
+When the step you're on needs a quest item (a torch, a bottle to fill, a horn to blow), a button with that item appears next to the arrow. Click it to use the item, or bind a key under Key Bindings > AddOns > WGA Companion. That's also where "Skip to the next guide step", "Show or hide the guide window" and "Open the WGA hub" live. Right-drag the button to move it; `/wga itembutton` puts it back.
+
+### Gathering map
+
+Every herb and ore node you gather is remembered and shown on the world map and minimap (only the kinds your professions use, or both if you have neither). Hover a node to see how often you've picked it. `/wga gather` (or "Gathering run" on the minimap menu) starts a gathering run: the arrow takes you to the nearest node in your zone you haven't picked in the last 5 minutes, then the next. `/wga gather herb` or `ore` limits the run, `stop` ends it, `pins` hides the nodes and `clear` forgets this zone's nodes.
+
 ### Whirl's advice
 
 `/wga advice` (or `/wga companion advice`) gives you a talent plan for your class and level, the stats to look for, dungeons that fit your level, and any upgrades sitting in your bags. `build`, `stats`, `dungeons` and `gear` give one part at a time. Tick "I play in groups" or "I'm a veteran player" in settings to change the advice; `/wga advice style group|solo` and `/wga advice experience new|veteran` do the same. On level up Whirl reminds you about talent milestones and, for new players, trainers and professions. Whirl also watches the mobs you kill. If you keep killing mobs that no quest needs, or you're fighting far from the current step, Whirl tells you where to go instead. The advice is written for WGA Companion in our own words and is based on classic class knowledge, so WoW Forever changes may not be reflected yet.

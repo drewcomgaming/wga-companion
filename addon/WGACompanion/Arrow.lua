@@ -249,6 +249,11 @@ function A:Point(m, x, y, title, seconds)
   if CM.db.settings.arrow ~= false then self.frame:Show() end
 end
 
+function A:ClearTemp()
+  temp = nil
+  if self.frame and not self:Active() then self.frame:Hide() end
+end
+
 function A:Toggle()
   self:Build()
   CM.db.settings.arrow = CM.db.settings.arrow == false

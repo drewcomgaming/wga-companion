@@ -27,6 +27,8 @@ local ITEMS = {
   { "Professions", function() CM.UI:Show("Professions") end },
   { "Gold making", function() CM.UI:Show("Gold") end },
   { "Trainer skills", function() CM.Trainer:Toggle() end },
+  { function() return "Gathering run: " .. ((CM.Gather and CM.Gather:Running()) and "|cff40ff40on|r" or "|cffff6060off|r") end,
+    function() CM.Gather:ToggleRun() end },
   "-",
   { function() return "Quest arrow: " .. onOff(CM.db.settings.questArrow) end, function() CM.QuestNav:Command("arrow") end },
   { function() return "Map quest icons: " .. onOff(CM.db.settings.questPins) end, function() CM.QuestNav:Command("pins") end },

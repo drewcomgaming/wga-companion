@@ -1,0 +1,13 @@
+<Bindings>
+  <Binding name="CLICK WGACompanionQuestItemButton:LeftButton" header="WGACOMPANION" category="ADDONS">
+  </Binding>
+  <Binding name="WGACOMPANION_NEXTSTEP" category="ADDONS">
+    WGACompanion_NextStep()
+  </Binding>
+  <Binding name="WGACOMPANION_GUIDE" category="ADDONS">
+    WGACompanion_ToggleGuide()
+  </Binding>
+  <Binding name="WGACOMPANION_HUB" category="ADDONS">
+    WGACompanion_ToggleHub()
+  </Binding>
+</Bindings>

@@ -353,6 +353,8 @@ local STYLE = {
   learned = { ADDON_ICONS .. "node", 0.4, 1, 0.4, 10 },
   avail   = { "Interface\\GossipFrame\\AvailableQuestIcon", 1, 1, 1, 17, { 0.45, 0.8, 1 } },  -- light blue
   turnin  = { "Interface\\GossipFrame\\ActiveQuestIcon", 1, 1, 1, 17, { 0.25, 1, 0.35 } },  -- green
+  herb    = { "Interface\\Icons\\INV_Misc_Flower_02", 1, 1, 1, 13 },   -- gathering nodes (Gather.lua)
+  ore     = { "Interface\\Icons\\INV_Ore_Copper_01", 1, 1, 1, 13 },
 }
 N.STYLE = STYLE
 
@@ -403,7 +405,9 @@ local function eachSpawn(sp, mapID, fn)
 end
 
 -- Everything worth showing on one map: emit(x, y, kind, title, text), x/y as 0-1 fractions.
-function N:Collect(mapID, emit)
+function N:Collect(mapID, emit, gatherOnly)
+  if CM.Gather then CM.Gather:Collect(mapID, emit) end
+  if gatherOnly then return end
   local QD = CM.QData
   -- quests in the log: objectives still open, or where to turn in
   for i = 1, QL.GetNumQuestLogEntries() do
@@ -450,7 +454,9 @@ end
 function N:DrawMap()
   for _, p in ipairs(pins) do p:Hide() end
   local wm = WorldMapFrame
-  if not CM.db or CM.db.settings.questPins == false or not wm or not wm:IsShown() then return end
+  if not CM.db or not wm or not wm:IsShown() then return end
+  local gatherOnly = CM.db.settings.questPins == false
+  if gatherOnly and CM.db.settings.gatherPins == false then return end
   local mapID = wm.GetMapID and wm:GetMapID()
   local canvas = wm.GetCanvas and wm:GetCanvas()
   if not mapID or not canvas then return end
@@ -477,7 +483,7 @@ function N:DrawMap()
     p:SetPoint("CENTER", canvas, "TOPLEFT", x * w, -y * h)
     p.title, p.text, p.m, p.x, p.y, p.count = title, text, mapID, x, y, 1
     p:Show()
-  end)
+  end, gatherOnly)
   self.mapDirty = false
 end
 
@@ -501,7 +507,9 @@ end
 function N:CollectMinimap()
   wipe(mmPoints)
   mmMap = C_Map.GetBestMapForUnit("player")
-  if not mmMap or not CM.db or CM.db.settings.questMinimap == false then return end
+  if not mmMap or not CM.db then return end
+  local gatherOnly = CM.db.settings.questMinimap == false
+  if gatherOnly and CM.db.settings.gatherPins == false then return end
   local seen = {}
   self:Collect(mmMap, function(x, y, kind, title, text)
     local key = kind .. math.floor(x * 400) .. ":" .. math.floor(y * 400)
@@ -509,7 +517,7 @@ function N:CollectMinimap()
     seen[key] = true
     local cont, wp = C_Map.GetWorldPosFromMapPos(mmMap, CreateVector2D(x, y))
     if cont and wp then table.insert(mmPoints, { wp.x, wp.y, cont, kind, title, text, x, y }) end
-  end)
+  end, gatherOnly)
 end
 
 function N:UpdateMinimap()

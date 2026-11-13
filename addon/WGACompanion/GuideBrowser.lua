@@ -378,8 +378,8 @@ local function row(list, i)
   r.text:ClearAllPoints(); r.text:SetPoint("LEFT", 52, 0); r.text:SetWidth(132); r.text:SetWordWrap(false)
   r.prog = T:Text(r, 10, "muted")
   r.prog:SetPoint("RIGHT", -90, 0); r.prog:SetJustifyH("RIGHT")
-  r.bar = T:Bar(r, 5)
-  r.bar:SetSize(60, 5); r.bar:SetPoint("RIGHT", -24, 0)
+  r.pbar = T:Bar(r, 5)
+  r.pbar:SetSize(60, 5); r.pbar:SetPoint("RIGHT", -24, 0)
   r.star = CreateFrame("Button", nil, r)
   r.star:SetSize(18, 18); r.star:SetPoint("RIGHT", -3, 0)
   r.star.text = T:Text(r.star, 12, "muted")
@@ -416,7 +416,7 @@ function B:Fill()
     if isHead then
       r.head:SetText(it.header)
       r.line:SetVertexColor(p.border[1], p.border[2], p.border[3], 1)
-      r.prog:Hide(); r.bar:Hide()
+      r.prog:Hide(); r.pbar:Hide()
       r.selected = false
     else
       first = first or it
@@ -429,7 +429,7 @@ function B:Fill()
       local done, total = self:Progress(it)
       local frac = total > 0 and done / total or 0
       r.prog:SetText(total > 0 and string.format("%d/%d", done, total) or ""); r.prog:SetShown(total > 0)
-      r.bar:SetShown(total > 0); r.bar:SetValue(frac)
+      r.pbar:SetShown(total > 0); r.pbar:SetValue(frac)
       r.star.text:SetText(favs()[it.key] and STAR_ON or STAR_OFF)
       r.star:SetAlpha(favs()[it.key] and 1 or 0.45)
       r.star:SetScript("OnClick", function() favs()[it.key] = not favs()[it.key] or nil; B:Fill() end)
